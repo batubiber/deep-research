@@ -200,6 +200,7 @@ export function useResearch() {
     setAgents(makeInitialAgents())
     setReport('')
     setSources([])
+    setSourcesCount(0)
     setActiveSession(null)
     setError(null)
   }, [])
