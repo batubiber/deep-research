@@ -3,7 +3,7 @@
 # Run backend + frontend dev servers concurrently (hot-reload)
 dev:
 	@trap 'kill 0' INT; \
-	uvicorn app.main:app --reload --port 8000 & \
+	uvicorn app.main:app --reload --port 8001 & \
 	cd frontend && npm run dev
 
 # Install all dependencies

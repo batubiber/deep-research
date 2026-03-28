@@ -87,7 +87,7 @@ cp .env.example .env
 uv sync
 
 # Start the backend
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
 ### Frontend (development)
@@ -98,7 +98,7 @@ npm install
 npm run dev        # Vite dev server on http://localhost:5173
 ```
 
-The Vite dev server proxies `/api` requests to the FastAPI backend on port 8000.
+The Vite dev server proxies `/api` requests to the FastAPI backend on port 8001.
 
 ### Frontend (production)
 
@@ -107,11 +107,11 @@ cd frontend
 npm run build      # Outputs to frontend/dist/
 ```
 
-FastAPI automatically serves `frontend/dist/` as static files — visit `http://localhost:8000`.
+FastAPI automatically serves `frontend/dist/` as static files — visit `http://localhost:8001`.
 
 ## API Reference
 
-Base URL: `http://localhost:8000`
+Base URL: `http://localhost:8001`
 
 ### `GET /health`
 
@@ -203,7 +203,7 @@ All settings are managed via environment variables (loaded from `.env`):
 | `MAX_PARALLEL_RESEARCHERS` | `4` | Max concurrent researcher agents |
 | **API** | | |
 | `API_HOST` | `0.0.0.0` | Bind address |
-| `API_PORT` | `8000` | Bind port |
+| `API_PORT` | `8001` | Bind port |
 | `API_KEY` | _(empty)_ | Optional API key |
 
 ## Docker
@@ -215,7 +215,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The app will be available at `http://localhost:8000` with health checks every 30s.
+The app will be available at `http://localhost:8001` with health checks every 30s.
 
 ## Testing
 
