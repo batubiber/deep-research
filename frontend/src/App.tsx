@@ -1,121 +1,70 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+// frontend/src/App.tsx
+import { SearchBar } from './components/SearchBar'
+import { Sidebar } from './components/Sidebar'
+import { PipelinePanel } from './components/PipelinePanel'
+import { ReportPanel } from './components/ReportPanel'
+import { useResearch } from './hooks/useResearch'
+import { FlaskConical } from 'lucide-react'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const {
+    researchState,
+    agents,
+    report,
+    sources,
+    sourcesCount,
+    history,
+    activeSession,
+    error,
+    startResearch,
+    loadSession,
+    newResearch,
+  } = useResearch()
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0d1117]">
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Header */}
+      <header className="flex items-center px-4 h-12 border-b border-[#30363d] bg-[#161b22]/80 backdrop-blur-sm flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="w-5 h-5 text-[#58a6ff]" />
+          <span className="text-sm font-bold text-[#e6edf3] tracking-wide">DeepResearch</span>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#21262d] border border-[#30363d] text-[#8b949e] font-mono">
+            qwen3-5
+          </span>
         </div>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {/* Search bar */}
+      <div className="px-4 py-3 border-b border-[#30363d] bg-[#161b22]/40 flex-shrink-0">
+        <SearchBar
+          onSearch={startResearch}
+          isRunning={researchState === 'running'}
+        />
+      </div>
+
+      {/* Main 3-column layout */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          history={history}
+          activeId={activeSession?.id}
+          onSelect={loadSession}
+          onNew={newResearch}
+        />
+        <PipelinePanel
+          agents={agents}
+          researchState={researchState}
+        />
+        <ReportPanel
+          report={report}
+          sources={sources}
+          sourcesCount={sourcesCount}
+          researchState={researchState}
+          error={error}
+        />
+      </div>
+    </div>
   )
 }
-
-export default App
