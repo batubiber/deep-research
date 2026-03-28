@@ -1,4 +1,8 @@
-from app.agents.prompts import RESEARCHER_PROMPT
+import json
+import logging
+import re
+
+from app.agents.prompts import RESEARCHER_PROMPT, RESEARCHER_REFLECTION_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
@@ -9,6 +13,55 @@ from app.tools.twitter_search import twitter_search
 from app.tools.web_search import web_search
 from app.tools.wikipedia_search import wikipedia_search
 from app.tools.youtube_search import youtube_search
+
+logger = logging.getLogger(__name__)
+
+_STOP_WORDS = {
+    "the", "a", "an", "is", "are", "was", "were", "in", "on", "at", "to",
+    "for", "of", "and", "or", "this", "that", "it", "with", "as", "by", "be",
+}
+
+# Max chars per source passed to LLM (~5K tokens each; 3 sources ≈ 15K input tokens)
+_MAX_CHARS_PER_SOURCE = 20_000
+
+
+def _semantic_chunk(content: str, query: str) -> str:
+    """Return full content if short; otherwise select the most query-relevant paragraphs.
+
+    Paragraphs are scored by keyword overlap with the query. The first few paragraphs
+    (introduction / abstract) receive a boost since they usually summarise the whole piece.
+    Selected paragraphs are returned in their original document order.
+    """
+    if len(content) <= _MAX_CHARS_PER_SOURCE:
+        return content
+
+    paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+    if not paragraphs:
+        return content[:_MAX_CHARS_PER_SOURCE]
+
+    query_words = {w for w in query.lower().split() if w not in _STOP_WORDS and len(w) > 2}
+
+    scored: list[tuple[float, int, str]] = []
+    for i, para in enumerate(paragraphs):
+        para_lower = para.lower()
+        score = sum(1 for w in query_words if w in para_lower)
+        boost = 2.0 if i < 3 else 1.0  # intro / abstract paragraphs get priority
+        scored.append((score * boost, i, para))
+
+    # Sort by relevance (desc), break ties by position (asc — earlier is better)
+    scored.sort(key=lambda x: (-x[0], x[1]))
+
+    selected: set[int] = set()
+    budget = 0
+    for _, idx, para in scored:
+        chunk_len = len(para) + 2  # +2 for the "\n\n" separator
+        if budget + chunk_len > _MAX_CHARS_PER_SOURCE:
+            continue
+        selected.add(idx)
+        budget += chunk_len
+
+    # Reconstruct in original document order
+    return "\n\n".join(para for i, para in enumerate(paragraphs) if i in selected)
 
 
 TOOL_DISPATCH = {
@@ -22,6 +75,87 @@ TOOL_DISPATCH = {
 }
 
 
+def _format_source(result, sub_question: dict) -> dict:
+    """Convert a SearchResult into the raw_sources dict format."""
+    return {
+        "title": result.title,
+        "url": result.url,
+        "content": _semantic_chunk(result.content, sub_question["question"]),
+        "eet_score": result.eet_score,
+        "sub_question_id": sub_question["id"],
+        "sub_question": sub_question["question"],
+    }
+
+
+def _source_summaries(sources: list[dict]) -> str:
+    """Build a brief summary of collected sources for the reflection prompt."""
+    lines = []
+    for i, s in enumerate(sources, 1):
+        title = s.get("title", "Untitled")
+        eet = s.get("eet_score", "unknown")
+        content_preview = s.get("content", "")[:200]
+        lines.append(f"{i}. [{eet.upper()}] {title}: {content_preview}...")
+    return "\n".join(lines)
+
+
+async def _reflect_on_sources(
+    main_query: str,
+    sub_question: dict,
+    sources: list[dict],
+    previous_queries: list[str],
+) -> dict:
+    """Ask the LLM whether collected sources sufficiently answer the sub-question.
+
+    Returns: {"sufficient": bool, "reason": str, "refined_query": str}
+    """
+    summaries = _source_summaries(sources)
+    prompt = RESEARCHER_REFLECTION_PROMPT
+
+    user_msg = (
+        f"Main research question: {main_query}\n"
+        f"Sub-question: {sub_question['question']}\n\n"
+        f"Previous search queries used: {previous_queries}\n\n"
+        f"Sources found so far ({len(sources)} total):\n{summaries}"
+    )
+
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": user_msg},
+    ]
+
+    response = await chat(
+        messages=messages,
+        thinking_budget=512,
+        temperature=0.1,
+    )
+    cleaned = strip_thinking(response)
+
+    # Parse JSON from response
+    try:
+        # Strip markdown code fences if present
+        text = cleaned.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        # Try extracting JSON object
+        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        if match:
+            try:
+                data = json.loads(match.group())
+            except json.JSONDecodeError:
+                data = {"sufficient": True, "reason": "parse error", "refined_query": ""}
+        else:
+            data = {"sufficient": True, "reason": "parse error", "refined_query": ""}
+
+    return {
+        "sufficient": bool(data.get("sufficient", True)),
+        "reason": data.get("reason", ""),
+        "refined_query": data.get("refined_query", ""),
+    }
+
+
 async def researcher_node(state: dict) -> dict:
     sub_question = state["sub_question"]
     query = state.get("query", "")
@@ -29,32 +163,62 @@ async def researcher_node(state: dict) -> dict:
     tool_name = sub_question.get("suggested_tool", "web_search")
     search_fn = TOOL_DISPATCH.get(tool_name, web_search)
 
-    try:
-        results = await search_fn(sub_question["question"], max_results=3)
-    except Exception:
-        results = []
+    all_sources: list[dict] = []
+    search_query = sub_question["question"]
+    previous_queries: list[str] = []
+    max_rounds = settings.researcher_max_rounds
+    results_per_search = settings.researcher_results_per_search
 
-    # Fallback to web_search if primary tool returned nothing
-    if not results and search_fn is not web_search:
+    for round_num in range(max_rounds):
+        previous_queries.append(search_query)
+
         try:
-            results = await web_search(sub_question["question"], max_results=3)
-            tool_name = "web_search"
+            results = await search_fn(search_query, max_results=results_per_search)
         except Exception:
             results = []
 
-    sources = []
-    for r in results:
-        sources.append({
-            "title": r.title,
-            "url": r.url,
-            "content": r.content,
-            "eet_score": r.eet_score,
-            "sub_question_id": sub_question["id"],
-            "sub_question": sub_question["question"],
-        })
+        # Fallback to web_search if primary tool returned nothing (first round only)
+        if not results and search_fn is not web_search and round_num == 0:
+            try:
+                results = await web_search(search_query, max_results=results_per_search)
+                tool_name = "web_search"
+            except Exception:
+                results = []
 
-    # If still no sources after fallback, return without calling the LLM
-    if not sources:
+        # Add new sources (skip duplicates by URL)
+        existing_urls = {s["url"] for s in all_sources if s.get("url")}
+        for r in results:
+            if r.url and r.url not in existing_urls:
+                all_sources.append(_format_source(r, sub_question))
+                existing_urls.add(r.url)
+
+        # Reflection: should we search again?
+        if round_num < max_rounds - 1 and all_sources:
+            reflection = await _reflect_on_sources(
+                query, sub_question, all_sources, previous_queries,
+            )
+            logger.info(
+                "Researcher reflection (SQ %d, round %d): sufficient=%s, reason=%s",
+                sub_question["id"], round_num + 1,
+                reflection["sufficient"], reflection["reason"],
+            )
+            if reflection["sufficient"]:
+                break
+            refined = reflection.get("refined_query", "").strip()
+            if refined and refined not in previous_queries:
+                search_query = refined
+            else:
+                break  # No useful refinement possible
+        elif not all_sources and round_num < max_rounds - 1:
+            # No results at all — try a simplified query
+            words = sub_question["question"].split()
+            if len(words) > 4:
+                search_query = " ".join(words[:5])
+            else:
+                break
+
+    # If still no sources after all rounds, return without calling the LLM
+    if not all_sources:
         return {
             "raw_sources": [{
                 "researcher_analysis": "No results found for this sub-question.",
@@ -64,9 +228,9 @@ async def researcher_node(state: dict) -> dict:
             }],
         }
 
-    # Build context for LLM
+    # Build context for LLM — final analysis of all collected sources
     sources_text = ""
-    for i, s in enumerate(sources, 1):
+    for i, s in enumerate(all_sources, 1):
         sources_text += f"\n### Source {i}: {s['title']}\n"
         sources_text += f"URL: {s['url']}\n"
         sources_text += f"E-E-A-T: {s['eet_score']}\n"
@@ -75,7 +239,8 @@ async def researcher_node(state: dict) -> dict:
     user_msg = (
         f"Main research question: {query}\n\n"
         f"Sub-question #{sub_question['id']} to research: {sub_question['question']}\n\n"
-        f"Search results:{sources_text}\n\n"
+        f"Search results ({len(all_sources)} sources from {len(previous_queries)} search rounds):"
+        f"{sources_text}\n\n"
         f"Analyze these sources following your output format."
     )
 
@@ -92,7 +257,7 @@ async def researcher_node(state: dict) -> dict:
     cleaned = strip_thinking(response)
 
     return {
-        "raw_sources": sources + [{
+        "raw_sources": all_sources + [{
             "researcher_analysis": cleaned,
             "sub_question_id": sub_question["id"],
             "sub_question": sub_question["question"],

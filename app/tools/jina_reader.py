@@ -31,7 +31,7 @@ async def jina_read_url(url: str) -> SearchResult:
         title=url.split("/")[-1] or url,
         url=url,
         content=content,
-        eet_score=get_eet_score(url),
+        eet_score=get_eet_score(url, content),
     )
 
 
@@ -68,7 +68,7 @@ async def jina_search(query: str, max_results: int = 3) -> list[SearchResult]:
             title=title,
             url=url,
             content=section,
-            eet_score=get_eet_score(url) if url else "low",
+            eet_score=get_eet_score(url, section) if url else "low",
         ))
 
     return results

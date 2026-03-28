@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     thinking_budget_reviewer: int = 1024
     thinking_budget_gap_researcher: int = 4096
     thinking_budget_writer: int = 8192
+    thinking_budget_summarizer: int = 2048
+    thinking_budget_citation_verifier: int = 1024
 
     # Temperature
     temperature_planner: float = 0.1
@@ -35,6 +37,11 @@ class Settings(BaseSettings):
     temperature_reviewer: float = 0.1
     temperature_gap_researcher: float = 0.1
     temperature_writer: float = 0.4
+    temperature_summarizer: float = 0.1
+
+    # Researcher iteration
+    researcher_max_rounds: int = 3
+    researcher_results_per_search: int = 5
 
     # Parallelism
     max_parallel_researchers: int = 4

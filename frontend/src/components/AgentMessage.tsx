@@ -26,10 +26,13 @@ function useElapsed(startedAt?: number, finishedAt?: number): string {
 const RUNNING_LABELS: Record<string, string> = {
   planner: 'Decomposing query...',
   research_assistant: 'Searching...',
+  summarizer: 'Summarizing sources...',
   analyst: 'Synthesizing sources...',
   reviewer: 'Reviewing analysis...',
   gap_researcher: 'Filling knowledge gaps...',
+  gap_integrator: 'Integrating gap findings...',
   writer: 'Writing final report...',
+  citation_verifier: 'Verifying citations...',
 }
 
 // --- Agent content renderers ---
@@ -233,6 +236,36 @@ function GapResearcherContent({ data }: { data: Record<string, any> }) {
   )
 }
 
+function SummarizerContent({ data }: { data: Record<string, any> }) {
+  const summary = data.summarized_sources as string | undefined
+  if (!summary) return null
+  return (
+    <div className="prose-report text-sm">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary}</ReactMarkdown>
+    </div>
+  )
+}
+
+function GapIntegratorContent({ data }: { data: Record<string, any> }) {
+  const enhanced = data.enhanced_analysis as string | undefined
+  if (!enhanced) return null
+  return (
+    <div className="prose-report text-sm">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{enhanced}</ReactMarkdown>
+    </div>
+  )
+}
+
+function CitationVerifierContent({ data }: { data: Record<string, any> }) {
+  const verification = data.citation_verification as string | undefined
+  if (!verification) return null
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-[#c9d1d9]">{verification}</p>
+    </div>
+  )
+}
+
 function WriterContent({ data }: { data: Record<string, any> }) {
   const report = data.report as string | undefined
   if (!report) return null
@@ -248,10 +281,13 @@ function WriterContent({ data }: { data: Record<string, any> }) {
 const CONTENT_RENDERERS: Record<AgentName, React.ComponentType<{ data: Record<string, any> }>> = {
   planner: PlannerContent,
   research_assistant: ResearcherContent,
+  summarizer: SummarizerContent,
   analyst: AnalystContent,
   reviewer: ReviewerContent,
   gap_researcher: GapResearcherContent,
+  gap_integrator: GapIntegratorContent,
   writer: WriterContent,
+  citation_verifier: CitationVerifierContent,
 }
 
 // --- Main component ---

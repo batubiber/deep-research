@@ -1,3 +1,4 @@
+import json
 import re
 
 from app.agents.prompts import REVIEWER_PROMPT
@@ -6,7 +7,8 @@ from app.config import settings
 from app.llm.client import chat, strip_thinking
 
 
-def _parse_review(text: str) -> dict:
+def _parse_review_regex(text: str) -> dict:
+    """Legacy regex parser — used as fallback when JSON extraction fails."""
     score_match = re.search(r"\*\*Overall Quality Score:\*\*\s*\[?(\d+)", text)
     score = int(score_match.group(1)) if score_match else 5
 
@@ -19,7 +21,7 @@ def _parse_review(text: str) -> dict:
         unquoted = re.findall(r'\d+\.\s+(?!")(.+?)(?:\s+[—–-]\s+impact:|$)', block, re.MULTILINE)
         return [u.strip() for u in unquoted if u.strip()][:3]
 
-    # Strategy 1: "Additional Research Queries" section (preferred — these are actual search queries)
+    # Strategy 1: "Additional Research Queries" section
     queries_match = re.search(
         r"\*\*Additional Research Queries[^*]*\*\*(.+?)(?:\*\*|$)", text, re.DOTALL | re.IGNORECASE
     )
@@ -43,6 +45,38 @@ def _parse_review(text: str) -> dict:
         "gaps": gaps,
         "full_review": text,
     }
+
+
+def _parse_review(text: str) -> dict:
+    """Parse reviewer output — tries JSON block first, falls back to regex."""
+    # Try to find JSON block in markdown code fence
+    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if json_match:
+        try:
+            data = json.loads(json_match.group(1))
+            return {
+                "score": int(data.get("score", 5)),
+                "gaps": list(data.get("gaps", []))[:3],
+                "full_review": text,
+            }
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Try to find a bare JSON object at the end of the text
+    json_match = re.search(r'\{[^{]*"score"[^}]*\}', text, re.DOTALL)
+    if json_match:
+        try:
+            data = json.loads(json_match.group())
+            return {
+                "score": int(data.get("score", 5)),
+                "gaps": list(data.get("gaps", []))[:3],
+                "full_review": text,
+            }
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Fallback to regex parser
+    return _parse_review_regex(text)
 
 
 async def reviewer_node(state: ResearchState) -> dict:

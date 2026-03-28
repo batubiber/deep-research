@@ -2,13 +2,21 @@ from app.agents.prompts import GAP_RESEARCHER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+from app.tools.arxiv_search import arxiv_search
 from app.tools.reddit_search import reddit_search
 from app.tools.twitter_search import twitter_search
 from app.tools.web_search import web_search
 
+_ACADEMIC_KEYWORDS = (
+    "arxiv", "paper", "technical report", "research paper",
+    "preprint", "academic", "study", "journal", "publication",
+)
+
 
 def _select_gap_tool(gap_query: str):
     lower = gap_query.lower()
+    if any(kw in lower for kw in _ACADEMIC_KEYWORDS):
+        return arxiv_search
     if any(kw in lower for kw in ["opinion", "sentiment", "reaction", "trending", "tweet"]):
         return twitter_search
     if any(kw in lower for kw in ["experience", "community", "troubleshoot", "how to", "reddit", "forum"]):

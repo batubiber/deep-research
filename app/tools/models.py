@@ -1,4 +1,6 @@
+import re
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 
 @dataclass
@@ -9,53 +11,125 @@ class SearchResult:
     eet_score: str  # "high" | "medium" | "low"
 
 
-HIGH_EET_DOMAINS = [
-    # Academic / scientific
-    ".gov", ".edu",
-    "arxiv.org", "nature.com", "science.org", "sciencedirect.com",
+# ---------- Signal 1: lightweight domain heuristics ----------
+# These are NOT a credibility score by themselves — just one of five signals.
+
+_INSTITUTIONAL_TLDS = (".gov", ".edu", ".int", ".mil")
+
+_ACADEMIC_DOMAINS = (
+    "arxiv.org", "doi.org", "pubmed", "ncbi.nlm.nih.gov",
+    "nature.com", "science.org", "sciencedirect.com",
     "ieee.org", "acm.org", "springer.com", "wiley.com",
-    "nih.gov", "pubmed.ncbi.nlm.nih.gov", "who.int", "un.org",
-    # AI / ML official sources
-    "openai.com", "anthropic.com", "huggingface.co",
-    "pytorch.org", "tensorflow.org",
-    # Official language / platform docs
-    "docs.python.org", "developer.mozilla.org",
-    "learn.microsoft.com", "docs.microsoft.com",
-    "cloud.google.com", "developer.apple.com",
-]
+)
 
-MEDIUM_EET_DOMAINS = [
-    "wikipedia.org", "reuters.com", "apnews.com", "bbc.com",
-    "nytimes.com", "theguardian.com", "washingtonpost.com",
-    "bloomberg.com", "techcrunch.com", "arstechnica.com",
-    "github.com",
-]
-
-# Host prefixes/suffixes that indicate official documentation
-_HIGH_HOST_PREFIXES = ("docs.", "developer.", "api.", "learn.", "documentation.")
-_HIGH_HOST_SUFFIXES = (".readthedocs.io",)
+_DOC_PREFIXES = ("docs.", "developer.", "api.", "learn.", "documentation.")
+_DOC_SUFFIXES = (".readthedocs.io",)
 
 
-def get_eet_score(url: str) -> str:
+def _domain_score(url: str) -> float:
+    """URL-based authority signal. Returns 0–2."""
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return 0.0
+
     url_lower = url.lower()
 
-    # Extract host for prefix/suffix matching
-    try:
-        host = url_lower.split("//", 1)[1].split("/", 1)[0]
-    except IndexError:
-        host = url_lower
+    if any(host.endswith(tld) for tld in _INSTITUTIONAL_TLDS):
+        return 2.0
+    if any(d in url_lower for d in _ACADEMIC_DOMAINS):
+        return 2.0
+    if any(host.startswith(p) for p in _DOC_PREFIXES):
+        return 1.5
+    if any(host.endswith(s) for s in _DOC_SUFFIXES):
+        return 1.5
+    if host.endswith(".org"):
+        return 0.5
+    return 0.0
 
-    for prefix in _HIGH_HOST_PREFIXES:
-        if host.startswith(prefix):
-            return "high"
-    for suffix in _HIGH_HOST_SUFFIXES:
-        if host.endswith(suffix):
-            return "high"
 
-    for domain in HIGH_EET_DOMAINS:
-        if domain in url_lower:
+def _content_depth_score(content: str) -> float:
+    """Word count signal. Returns 0–3."""
+    wc = len(content.split())
+    if wc > 2000:
+        return 3.0
+    if wc > 800:
+        return 2.0
+    if wc > 300:
+        return 1.0
+    return 0.0
+
+
+def _specificity_score(content: str) -> float:
+    """Data density: numbers, percentages, concrete figures. Returns 0–2."""
+    hits = len(re.findall(r"\b\d[\d.,]*%?\b", content))
+    if hits > 30:
+        return 2.0
+    if hits > 10:
+        return 1.0
+    return 0.0
+
+
+def _reference_score(content: str) -> float:
+    """Citation / reference density. Returns 0–2."""
+    refs = (
+        content.count("http://") + content.count("https://")
+        + content.count("doi:") + content.count("et al.")
+        + len(re.findall(r"\[\d+\]", content))
+        + len(re.findall(r"\(\d{4}\)", content))
+    )
+    if refs > 10:
+        return 2.0
+    if refs > 3:
+        return 1.0
+    return 0.0
+
+
+def _structure_score(content: str) -> float:
+    """Structural organisation: headers, tables, emphasis. Returns 0–1."""
+    markers = (
+        content.count("##")
+        + content.count("|")
+        + content.count("**")
+    )
+    return 1.0 if markers > 10 else 0.0
+
+
+def get_eet_score(url: str, content: str = "", title: str = "") -> str:
+    """Multi-signal credibility assessment.
+
+    Five signals (max 10 points total):
+      1. Domain type          0–2  (institutional, academic, docs)
+      2. Content depth        0–3  (word count)
+      3. Technical specificity 0–2  (numbers, data points)
+      4. Reference density    0–2  (citations, DOIs, links)
+      5. Structural quality   0–1  (headers, tables, formatting)
+
+    Thresholds: ≥ 6 → high, ≥ 3 → medium, else low.
+
+    When *content* is empty the function degrades gracefully to a
+    URL-only heuristic (weaker but backward-compatible).
+    """
+    domain = _domain_score(url)
+
+    # URL-only fast path (no content available yet)
+    if not content:
+        if domain >= 1.5:
             return "high"
-    for domain in MEDIUM_EET_DOMAINS:
-        if domain in url_lower:
+        if domain >= 0.5:
             return "medium"
+        return "low"
+
+    total = (
+        domain
+        + _content_depth_score(content)
+        + _specificity_score(content)
+        + _reference_score(content)
+        + _structure_score(content)
+    )
+
+    if total >= 6.0:
+        return "high"
+    if total >= 3.0:
+        return "medium"
     return "low"

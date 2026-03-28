@@ -5,17 +5,24 @@ from app.llm.client import chat, strip_thinking
 
 
 async def analyst_node(state: ResearchState) -> dict:
-    sources_text = ""
-    for s in state.get("raw_sources", []):
-        if "researcher_analysis" in s:
-            sources_text += f"\n--- Researcher Analysis (Sub-Q {s['sub_question_id']}) ---\n"
-            sources_text += s["researcher_analysis"] + "\n"
-        else:
-            sources_text += f"\n--- Source: {s.get('title', 'N/A')} ---\n"
-            sources_text += f"URL: {s.get('url', 'N/A')}\n"
-            sources_text += f"E-E-A-T: {s.get('eet_score', 'N/A')}\n"
-            sources_text += f"Sub-Question: {s.get('sub_question', 'N/A')}\n"
-            sources_text += f"Content: {s.get('content', '')}\n"
+    # Prefer summarized sources (from summarizer node) over raw sources
+    summarized = state.get("summarized_sources", "")
+
+    if summarized:
+        sources_text = summarized
+    else:
+        # Fallback to raw sources if summarizer didn't run
+        sources_text = ""
+        for s in state.get("raw_sources", []):
+            if "researcher_analysis" in s:
+                sources_text += f"\n--- Researcher Analysis (Sub-Q {s['sub_question_id']}) ---\n"
+                sources_text += s["researcher_analysis"] + "\n"
+            else:
+                sources_text += f"\n--- Source: {s.get('title', 'N/A')} ---\n"
+                sources_text += f"URL: {s.get('url', 'N/A')}\n"
+                sources_text += f"E-E-A-T: {s.get('eet_score', 'N/A')}\n"
+                sources_text += f"Sub-Question: {s.get('sub_question', 'N/A')}\n"
+                sources_text += f"Content: {s.get('content', '')}\n"
 
     user_msg = (
         f"Main question: {state.get('main_question', state['query'])}\n\n"

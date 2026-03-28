@@ -20,8 +20,8 @@ async def run_research(req: ResearchRequest) -> ResearchResponse:
 
 
 AGENT_NODE_NAMES = {
-    "planner", "research_assistant", "analyst",
-    "reviewer", "gap_researcher", "writer",
+    "planner", "research_assistant", "summarizer", "analyst",
+    "reviewer", "gap_researcher", "gap_integrator", "writer", "citation_verifier",
 }
 
 
@@ -83,6 +83,10 @@ async def run_research_stream(req: ResearchRequest):
                 payload["sources"] = sources
                 payload["analysis"] = analysis
 
+            elif node == "summarizer" and isinstance(output, dict):
+                summary = output.get("summarized_sources", "")
+                payload["summarized_sources"] = summary[:2000]  # preview only
+
             elif node == "analyst" and isinstance(output, dict):
                 payload["analysis"] = output.get("analysis", "")
 
@@ -107,10 +111,17 @@ async def run_research_stream(req: ResearchRequest):
                         })
                 payload["gap_sources"] = gap_sources
 
+            elif node == "gap_integrator" and isinstance(output, dict):
+                enhanced = output.get("enhanced_analysis", "")
+                payload["enhanced_analysis"] = enhanced[:2000]  # preview only
+
+            elif node == "citation_verifier" and isinstance(output, dict):
+                payload["citation_verification"] = output.get("citation_verification", "")
+
             yield f"data: {json.dumps(payload)}\n\n"
 
-            # After writer: emit __done__ with full report
-            if node == "writer" and isinstance(output, dict) and "final_report" in output:
+            # After citation_verifier: emit __done__ with full report
+            if node == "citation_verifier" and isinstance(output, dict) and "final_report" in output:
                 input_state = data.get("input", {}) if isinstance(data, dict) else {}
                 raw_sources = input_state.get("raw_sources", []) if isinstance(input_state, dict) else []
                 done_payload = {
@@ -119,5 +130,10 @@ async def run_research_stream(req: ResearchRequest):
                     "sources_count": len(raw_sources) if isinstance(raw_sources, list) else 0,
                 }
                 yield f"data: {json.dumps(done_payload)}\n\n"
+
+            # Fallback: if writer is the last node (citation_verifier skipped somehow)
+            elif node == "writer" and isinstance(output, dict) and "final_report" in output:
+                # Only emit __done__ from writer if citation_verifier is not in the pipeline
+                pass  # citation_verifier will handle it
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

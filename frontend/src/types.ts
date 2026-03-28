@@ -5,10 +5,13 @@ export type EEATScore = 'high' | 'medium' | 'low'
 export type AgentName =
   | 'planner'
   | 'research_assistant'
+  | 'summarizer'
   | 'analyst'
   | 'reviewer'
   | 'gap_researcher'
+  | 'gap_integrator'
   | 'writer'
+  | 'citation_verifier'
 
 export interface Source {
   title: string

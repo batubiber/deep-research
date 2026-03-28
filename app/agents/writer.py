@@ -19,13 +19,24 @@ async def writer_node(state: ResearchState) -> dict:
     ]
     sources_block = "\n".join(source_lines) if source_lines else "No citable sources available."
 
+    # Use enhanced_analysis (gap-integrated) if available, otherwise fall back to analysis + gap_findings
+    enhanced = state.get("enhanced_analysis", "")
+    analysis = enhanced if enhanced else state.get("analysis", "")
+    has_gap_integration = bool(enhanced)
+
+    analysis_section = f"--- ANALYSIS ---\n{analysis}\n\n"
+    # Only include separate gap section if gap_integrator didn't run
+    gap_section = ""
+    if not has_gap_integration:
+        gap_section = f"--- GAP RESEARCH ---\n{state.get('gap_findings', '')}\n\n"
+
     user_msg = (
         f"Main question: {state.get('main_question', state['query'])}\n\n"
         f"Complexity: {state.get('complexity', 'moderate')}\n\n"
-        f"--- ANALYSIS ---\n{state.get('analysis', '')}\n\n"
+        f"{analysis_section}"
         f"--- REVIEW ---\n{review.get('full_review', '')}\n"
         f"Quality Score: {review.get('score', 'N/A')}\n\n"
-        f"--- GAP RESEARCH ---\n{state.get('gap_findings', '')}\n\n"
+        f"{gap_section}"
         f"--- VERIFIED SOURCE LIST ({len(citable)} sources) ---\n"
         f"{sources_block}\n\n"
         f"IMPORTANT: In the Sources section, ONLY list URLs from the VERIFIED SOURCE LIST above. "
