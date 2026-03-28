@@ -2,7 +2,7 @@ import asyncio
 
 import arxiv
 
-from app.tools.web_search import SearchResult, get_eet_score
+from app.tools.models import SearchResult, get_eet_score
 
 
 async def arxiv_search(query: str, max_results: int = 5) -> list[SearchResult]:

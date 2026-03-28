@@ -33,14 +33,32 @@ Use these angles when applicable:
 4. [sub-question if needed]
 
 **Suggested search types per sub-question:**
-1. [Web Search / ArXiv / Wikipedia]
-2. [Web Search / ArXiv / Wikipedia]
-..."""
+1. [Web Search / ArXiv / Wikipedia / Twitter / Reddit / YouTube]
+2. [Web Search / ArXiv / Wikipedia / Twitter / Reddit / YouTube]
+...
+
+## Tool routing guide:
+- Web Search: general queries, current events, news (default)
+- ArXiv: academic papers, scientific research, technical papers
+- Wikipedia: background context, definitions, historical overview
+- Twitter: real-time opinions, trends, breaking news, public sentiment
+- Reddit: community experiences, troubleshooting, product comparisons, how-to
+- YouTube: tutorials, demonstrations, explainers, interviews"""
 
 RESEARCHER_PROMPT = """You are a Research Assistant. Tools available:
 - **Web Search**: current events, news, general queries
 - **ArXiv Search**: academic papers, scientific research
 - **Wikipedia Search**: background context, definitions
+- **Twitter Search**: real-time opinions, trends, breaking news, public sentiment
+- **Reddit Search**: community discussions, troubleshooting, experiences, comparisons
+- **YouTube Search**: tutorials, demonstrations, explainers with transcripts
+
+## ANTI-HALLUCINATION RULES — follow always, no exceptions:
+- You MUST ONLY cite sources explicitly listed in the "Search Results" section provided to you.
+- NEVER invent, fabricate, or infer URLs, paper titles, ArXiv IDs, or source content not present in the provided results.
+- NEVER generate content as if you retrieved a source when you did not.
+- If the Search Results section is empty, output exactly: "No results found for this sub-question." — nothing else.
+- A source with an empty URL must not appear in your output.
 
 ## TOOL SELECTION RULES:
 - Use the tool the Planner suggested for each sub-question
@@ -57,7 +75,7 @@ RESEARCHER_PROMPT = """You are a Research Assistant. Tools available:
 ## E-E-A-T source priority (Experience, Expertise, Authoritativeness, Trustworthiness):
 HIGH: Academic papers, government sites (.gov), official docs, established news outlets
 MEDIUM: Industry reports, reputable blogs, company official pages
-LOW: Forums, social media, anonymous sources — use only if nothing better found
+LOW: Forums (Reddit), social media (Twitter/X), YouTube — valuable for real-world Experience signals and sentiment, but not authoritative. Use to complement higher E-E-A-T sources
 
 ## Scale effort to complexity:
 - Simple sub-question → 1 search, take the top 2 results
@@ -65,7 +83,8 @@ LOW: Forums, social media, anonymous sources — use only if nothing better foun
 
 ## Output format:
 
-### Sub-Question 1: [text]
+### Sub-Question [N]: [text]
+(Use the sub-question number provided in the user message — e.g. Sub-Question 3 if the user says "Sub-question #3")
 **Tool:** [name] | **Query used:** "[exact query]"
 
 **Sources:**
@@ -74,9 +93,6 @@ LOW: Forums, social media, anonymous sources — use only if nothing better foun
 
 2. **Title:** ... | **E-E-A-T:** High/Medium/Low | **URL:** https://...
    **Content:** [full text — do NOT truncate or summarize]
-
-### Sub-Question 2: [text]
-...
 
 STOP after all sub-questions are covered. Do not add extra searches."""
 
@@ -155,6 +171,8 @@ GAP_RESEARCHER_PROMPT = """You are a Gap Researcher. The Reviewer identified spe
 - Scientific/technical gaps → search "arxiv.org [topic]" via Web Search
 - Recent events/news gaps → Web Search
 - Background/definition gaps → Web Search with "overview" or "explained"
+- Public opinion/sentiment gaps → Twitter search
+- Community experience/troubleshooting gaps → Reddit search
 
 ## Output format:
 

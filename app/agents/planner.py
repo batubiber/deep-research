@@ -10,6 +10,10 @@ TOOL_MAP = {
     "web search": "web_search",
     "arxiv": "arxiv",
     "wikipedia": "wikipedia",
+    "twitter": "twitter",
+    "reddit": "reddit",
+    "youtube": "youtube",
+    "jina": "jina_read",
 }
 
 
@@ -35,7 +39,11 @@ def _parse_planner_output(text: str) -> dict:
     tool_section = re.search(r"\*\*Suggested search types.*?\*\*(.+?)$", text, re.DOTALL | re.IGNORECASE)
     tool_suggestions = {}
     if tool_section:
-        for match in re.finditer(r"(\d+)\.\s+\[?(Web Search|ArXiv|Wikipedia)", tool_section.group(1), re.IGNORECASE):
+        for match in re.finditer(
+            r"(\d+)\.\s+\[?(Web Search|ArXiv|Wikipedia|Twitter|Reddit|YouTube|Jina)",
+            tool_section.group(1),
+            re.IGNORECASE,
+        ):
             idx = int(match.group(1))
             tool_name = match.group(2).lower().strip()
             tool_suggestions[idx] = TOOL_MAP.get(tool_name, "web_search")

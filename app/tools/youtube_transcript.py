@@ -3,7 +3,7 @@ import re
 
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from app.tools.web_search import SearchResult
+from app.tools.models import SearchResult
 
 
 def _extract_video_id(url: str) -> str:

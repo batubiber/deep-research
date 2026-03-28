@@ -2,7 +2,7 @@ import asyncio
 
 import wikipedia
 
-from app.tools.web_search import SearchResult
+from app.tools.models import SearchResult
 
 
 async def wikipedia_search(query: str, max_results: int = 2) -> list[SearchResult]:

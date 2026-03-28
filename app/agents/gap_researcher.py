@@ -2,7 +2,18 @@ from app.agents.prompts import GAP_RESEARCHER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+from app.tools.reddit_search import reddit_search
+from app.tools.twitter_search import twitter_search
 from app.tools.web_search import web_search
+
+
+def _select_gap_tool(gap_query: str):
+    lower = gap_query.lower()
+    if any(kw in lower for kw in ["opinion", "sentiment", "reaction", "trending", "tweet"]):
+        return twitter_search
+    if any(kw in lower for kw in ["experience", "community", "troubleshoot", "how to", "reddit", "forum"]):
+        return reddit_search
+    return web_search
 
 
 async def gap_researcher_node(state: ResearchState) -> dict:
@@ -15,8 +26,9 @@ async def gap_researcher_node(state: ResearchState) -> dict:
     # Search for each gap
     gap_results = []
     for gap_query in gaps:
+        search_fn = _select_gap_tool(gap_query)
         try:
-            results = await web_search(gap_query, max_results=2)
+            results = await search_fn(gap_query, max_results=2)
             for r in results:
                 gap_results.append({
                     "title": r.title,

@@ -3,14 +3,22 @@ from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
 from app.tools.arxiv_search import arxiv_search
+from app.tools.jina_reader import jina_search
+from app.tools.reddit_search import reddit_search
+from app.tools.twitter_search import twitter_search
 from app.tools.web_search import web_search
 from app.tools.wikipedia_search import wikipedia_search
+from app.tools.youtube_search import youtube_search
 
 
 TOOL_DISPATCH = {
     "web_search": web_search,
     "arxiv": arxiv_search,
     "wikipedia": wikipedia_search,
+    "twitter": twitter_search,
+    "reddit": reddit_search,
+    "youtube": youtube_search,
+    "jina_read": jina_search,
 }
 
 
@@ -26,6 +34,14 @@ async def researcher_node(state: dict) -> dict:
     except Exception:
         results = []
 
+    # Fallback to web_search if primary tool returned nothing
+    if not results and search_fn is not web_search:
+        try:
+            results = await web_search(sub_question["question"], max_results=3)
+            tool_name = "web_search"
+        except Exception:
+            results = []
+
     sources = []
     for r in results:
         sources.append({
@@ -37,6 +53,17 @@ async def researcher_node(state: dict) -> dict:
             "sub_question": sub_question["question"],
         })
 
+    # If still no sources after fallback, return without calling the LLM
+    if not sources:
+        return {
+            "raw_sources": [{
+                "researcher_analysis": "No results found for this sub-question.",
+                "sub_question_id": sub_question["id"],
+                "sub_question": sub_question["question"],
+                "tool_used": tool_name,
+            }],
+        }
+
     # Build context for LLM
     sources_text = ""
     for i, s in enumerate(sources, 1):
@@ -47,7 +74,7 @@ async def researcher_node(state: dict) -> dict:
 
     user_msg = (
         f"Main research question: {query}\n\n"
-        f"Sub-question to research: {sub_question['question']}\n\n"
+        f"Sub-question #{sub_question['id']} to research: {sub_question['question']}\n\n"
         f"Search results:{sources_text}\n\n"
         f"Analyze these sources following your output format."
     )

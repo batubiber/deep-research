@@ -5,7 +5,7 @@ from typing import Annotated, TypedDict
 class SubQuestion(TypedDict):
     id: int
     question: str
-    suggested_tool: str  # "web_search" | "arxiv" | "wikipedia"
+    suggested_tool: str  # "web_search" | "arxiv" | "wikipedia" | "twitter" | "reddit" | "youtube" | "jina_read"
     sources: list[dict]
     analysis: dict
 

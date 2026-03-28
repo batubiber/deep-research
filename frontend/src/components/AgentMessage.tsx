@@ -76,7 +76,11 @@ function PlannerContent({ data }: { data: Record<string, any> }) {
 function ToolCallBadge({ tool, duration }: { tool: string; duration?: string }) {
   const toolLabel = tool === 'web_search' ? 'PERFORM_SEARCH' :
                     tool === 'arxiv' ? 'ARXIV_SEARCH' :
-                    tool === 'wikipedia' ? 'WIKI_SEARCH' : tool.toUpperCase()
+                    tool === 'wikipedia' ? 'WIKI_SEARCH' :
+                    tool === 'twitter' ? 'TWITTER_SEARCH' :
+                    tool === 'reddit' ? 'REDDIT_SEARCH' :
+                    tool === 'youtube' ? 'YOUTUBE_SEARCH' :
+                    tool === 'jina_read' ? 'JINA_READ' : tool.toUpperCase()
   return (
     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#161b22] border border-[#30363d] rounded-md text-xs">
       <span className="text-[#8b949e]">Called tool</span>

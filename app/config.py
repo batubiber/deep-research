@@ -2,6 +2,19 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Tavily
+    tavily_api_key: str = ""
+
+    # Twitter (optional — cookie auth)
+    twitter_ct0: str = ""
+    twitter_auth_token: str = ""
+
+    # Reddit
+    reddit_user_agent: str = "DeepResearch/0.1.0"
+
+    # Jina Reader (optional)
+    jina_api_key: str = ""
+
     # vLLM
     vllm_base_url: str = "https://kent-unurbane-many.ngrok-free.dev/v1"
     vllm_api_key: str = "a"
