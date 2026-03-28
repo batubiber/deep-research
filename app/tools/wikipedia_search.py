@@ -1,3 +1,5 @@
+import asyncio
+
 import wikipedia
 
 from app.tools.web_search import SearchResult
@@ -5,10 +7,10 @@ from app.tools.web_search import SearchResult
 
 async def wikipedia_search(query: str, max_results: int = 2) -> list[SearchResult]:
     results = []
-    titles = wikipedia.search(query, results=max_results)
+    titles = await asyncio.to_thread(wikipedia.search, query, results=max_results)
     for title in titles:
         try:
-            page = wikipedia.page(title, auto_suggest=False)
+            page = await asyncio.to_thread(wikipedia.page, title, auto_suggest=False)
             results.append(
                 SearchResult(
                     title=page.title,

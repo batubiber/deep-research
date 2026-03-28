@@ -1,3 +1,4 @@
+import asyncio
 import re
 
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -19,7 +20,7 @@ def _extract_video_id(url: str) -> str:
 async def youtube_transcript(video_url: str) -> SearchResult:
     video_id = _extract_video_id(video_url)
     ytt_api = YouTubeTranscriptApi()
-    transcript = ytt_api.fetch(video_id)
+    transcript = await asyncio.to_thread(ytt_api.fetch, video_id)
     text = " ".join(entry.text for entry in transcript.snippets)
     return SearchResult(
         title=f"YouTube Video {video_id}",

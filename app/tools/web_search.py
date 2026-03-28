@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 
 from ddgs import DDGS
@@ -39,7 +40,8 @@ def get_eet_score(url: str) -> str:
 async def web_search(query: str, max_results: int = 3) -> list[SearchResult]:
     results = []
     ddgs = DDGS()
-    for r in ddgs.text(query, max_results=max_results):
+    raw = await asyncio.to_thread(ddgs.text, query, max_results=max_results)
+    for r in raw:
         results.append(
             SearchResult(
                 title=r.get("title", ""),
