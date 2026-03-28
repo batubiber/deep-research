@@ -9,3 +9,6 @@ build/
 Deep_Research_v3.json
 uv.lock
 .claude/
+frontend/node_modules/
+frontend/dist/
+.superpowers/
