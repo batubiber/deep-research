@@ -1,18 +1,13 @@
 // frontend/src/App.tsx
-import { SearchBar } from './components/SearchBar'
 import { Sidebar } from './components/Sidebar'
-import { PipelinePanel } from './components/PipelinePanel'
-import { ReportPanel } from './components/ReportPanel'
+import { ChatArea } from './components/ChatArea'
 import { useResearch } from './hooks/useResearch'
 import { FlaskConical } from 'lucide-react'
 
 export default function App() {
   const {
     researchState,
-    agents,
-    report,
-    sources,
-    sourcesCount,
+    messages,
     history,
     activeSession,
     error,
@@ -37,15 +32,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Search bar */}
-      <div className="px-4 py-3 border-b border-[#30363d] bg-[#161b22]/40 flex-shrink-0">
-        <SearchBar
-          onSearch={startResearch}
-          isRunning={researchState === 'running'}
-        />
-      </div>
-
-      {/* Main 3-column layout */}
+      {/* Main layout: Sidebar + ChatArea */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           history={history}
@@ -53,16 +40,11 @@ export default function App() {
           onSelect={loadSession}
           onNew={newResearch}
         />
-        <PipelinePanel
-          agents={agents}
-          researchState={researchState}
-        />
-        <ReportPanel
-          report={report}
-          sources={sources}
-          sourcesCount={sourcesCount}
-          researchState={researchState}
+        <ChatArea
+          messages={messages}
           error={error}
+          onSendMessage={startResearch}
+          isRunning={researchState === 'running'}
         />
       </div>
     </div>

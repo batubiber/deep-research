@@ -1,17 +1,41 @@
 // frontend/src/lib/api.ts
 
+import type { EEATScore } from '../types'
+
 const BASE = '/api/v1'
 
-/** Shape of each SSE event emitted by the streaming endpoint */
 export interface SSEEvent {
   node: string
-  output?: string
-  // planner extras
-  sub_questions?: number
+  timestamp?: number
+
+  // planner
+  main_question?: string
   complexity?: string
-  // reviewer extras
+  sub_questions?: Array<{ id: number; question: string; suggested_tool: string }>
+
+  // research_assistant
+  sub_question_id?: number
+  sub_question?: string
+  tool_used?: string
+  sources?: Array<{
+    title: string; url: string; content: string;
+    eet_score: EEATScore
+  }>
+  analysis?: string  // also used by analyst
+
+  // reviewer
   score?: number
-  // __done__ event
+  gaps?: string[]
+  full_review?: string
+
+  // gap_researcher
+  gap_findings?: string
+  gap_sources?: Array<{
+    title: string; url: string; content: string;
+    eet_score: EEATScore; gap_query: string
+  }>
+
+  // __done__
   report?: string
   sources_count?: number
 }
@@ -19,8 +43,6 @@ export interface SSEEvent {
 /**
  * POST /api/v1/research/stream
  * Reads the SSE response body line by line and calls onEvent for each parsed event.
- * Resolves when the stream closes. Rejects on network error.
- * Pass an AbortSignal to cancel.
  */
 export async function streamResearch(
   query: string,

@@ -10,26 +10,29 @@ export type AgentName =
   | 'gap_researcher'
   | 'writer'
 
-export interface AgentStatus {
-  name: AgentName
-  displayName: string
-  status: 'pending' | 'running' | 'done' | 'error'
-  startedAt?: number   // ms timestamp
-  finishedAt?: number
-  metadata?: Record<string, string | number>
-}
-
 export interface Source {
   title: string
   url: string
   eet_score: EEATScore
 }
 
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'agent'
+  agentName?: AgentName
+  displayName?: string
+  status: 'pending' | 'running' | 'done' | 'error'
+  startedAt?: number
+  finishedAt?: number
+  data: Record<string, any>
+}
+
 export interface ResearchSession {
   id: string
   query: string
   timestamp: number
+  messages?: ChatMessage[]
   report?: string
-  sources?: Source[]   // parsed from ## Sources section of report
+  sources?: Source[]
   sourcesCount?: number
 }

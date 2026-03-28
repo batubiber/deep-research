@@ -16,7 +16,7 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 
-/* Markdown styling in ReportPanel */
+/* Markdown prose styling */
 .prose-report h1 { font-size: 1.5rem; font-weight: 700; color: #e6edf3; margin: 1.5rem 0 0.75rem; }
 .prose-report h2 { font-size: 1.25rem; font-weight: 600; color: #e6edf3; margin: 1.25rem 0 0.5rem; border-bottom: 1px solid #30363d; padding-bottom: 0.25rem; }
 .prose-report h3 { font-size: 1.1rem; font-weight: 600; color: #c9d1d9; margin: 1rem 0 0.4rem; }
@@ -35,3 +35,12 @@ html, body, #root {
 .prose-report pre code { background: transparent; padding: 0; color: #e6edf3; }
 .prose-report blockquote { border-left: 3px solid #30363d; padding-left: 1rem; color: #8b949e; margin: 0.75rem 0; }
 .prose-report hr { border: none; border-top: 1px solid #30363d; margin: 1.5rem 0; }
+
+/* Chat message entrance animation */
+@keyframes message-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-message-enter {
+  animation: message-enter 0.3s ease-out;
+}

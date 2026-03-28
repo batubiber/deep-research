@@ -65,5 +65,10 @@ async def researcher_node(state: dict) -> dict:
     cleaned = strip_thinking(response)
 
     return {
-        "raw_sources": sources + [{"researcher_analysis": cleaned, "sub_question_id": sub_question["id"]}],
+        "raw_sources": sources + [{
+            "researcher_analysis": cleaned,
+            "sub_question_id": sub_question["id"],
+            "sub_question": sub_question["question"],
+            "tool_used": tool_name,
+        }],
     }
