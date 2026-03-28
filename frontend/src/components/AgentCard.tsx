@@ -72,7 +72,7 @@ function AgentMetadata({ agent }: { agent: AgentStatus }) {
 
   if (name === 'reviewer') {
     const score = metadata.score as number
-    if (!score) return null
+    if (score == null) return null
     const color =
       score >= 8 ? 'text-[#3fb950] bg-[#1a4731]' :
       score >= 5 ? 'text-[#d29922] bg-[#3d2e00]' :

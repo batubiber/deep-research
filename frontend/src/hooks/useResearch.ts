@@ -74,18 +74,22 @@ export function useResearch() {
     }
 
     if (node === 'research_assistant') {
-      setAgents(prev => prev.map(a => {
-        if (a.name !== 'research_assistant') return a
-        const done = ((a.metadata?.done as number) ?? 0) + 1
-        const total = (a.metadata?.total as number) ?? 3
+      setAgents(prev => {
+        const ra = prev.find(a => a.name === 'research_assistant')
+        const done = ((ra?.metadata?.done as number) ?? 0) + 1
+        const total = (ra?.metadata?.total as number) ?? 3
         const isLast = done >= total
-        return {
-          ...a,
-          status: isLast ? 'done' : 'running',
-          finishedAt: isLast ? Date.now() : undefined,
-          metadata: { ...a.metadata, done, total },
-        }
-      }))
+        return prev.map(a => {
+          if (a.name === 'research_assistant') return {
+            ...a,
+            status: isLast ? 'done' : 'running',
+            finishedAt: isLast ? Date.now() : undefined,
+            metadata: { ...a.metadata, done, total },
+          }
+          if (a.name === 'analyst' && isLast) return { ...a, status: 'running', startedAt: Date.now() }
+          return a
+        })
+      })
       return
     }
 
@@ -176,6 +180,9 @@ export function useResearch() {
         },
         ctrl.signal,
       )
+      // Stream resolved without __done__ — guard against stuck running state
+      setResearchState(prev => prev === 'running' ? 'error' : prev)
+      setError(prev => prev ?? 'Research stream closed without a final report')
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       setError((err as Error).message ?? 'Research failed')

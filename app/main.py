@@ -42,6 +42,12 @@ async def health():
     return {"status": "ok", "model": settings.vllm_model_name}
 
 
+# Serve React frontend in production (must come after all API routes)
+_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.isdir(_dist):
+    app.mount("/", StaticFiles(directory=_dist, html=True), name="static")
+
+
 if __name__ == "__main__":
     import uvicorn
 
@@ -51,8 +57,3 @@ if __name__ == "__main__":
         port=settings.api_port,
         reload=True,
     )
-
-# Serve React frontend in production
-_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-if os.path.isdir(_dist):
-    app.mount("/", StaticFiles(directory=_dist, html=True), name="static")
