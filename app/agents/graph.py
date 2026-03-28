@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
 from app.agents.analyst import analyst_node
+from app.agents.deduplicator import deduplicator_node
 from app.agents.gap_researcher import gap_researcher_node
 from app.agents.planner import planner_node
 from app.agents.researcher import researcher_node
@@ -24,6 +25,7 @@ builder = StateGraph(ResearchState)
 
 builder.add_node("planner", planner_node)
 builder.add_node("research_assistant", researcher_node)
+builder.add_node("deduplicator", deduplicator_node)
 builder.add_node("analyst", analyst_node)
 builder.add_node("reviewer", reviewer_node)
 builder.add_node("gap_researcher", gap_researcher_node)
@@ -31,7 +33,8 @@ builder.add_node("writer", writer_node)
 
 builder.set_entry_point("planner")
 builder.add_conditional_edges("planner", route_to_researchers)
-builder.add_edge("research_assistant", "analyst")
+builder.add_edge("research_assistant", "deduplicator")
+builder.add_edge("deduplicator", "analyst")
 builder.add_edge("analyst", "reviewer")
 builder.add_edge("reviewer", "gap_researcher")
 builder.add_edge("gap_researcher", "writer")

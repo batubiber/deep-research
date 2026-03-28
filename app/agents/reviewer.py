@@ -10,10 +10,33 @@ def _parse_review(text: str) -> dict:
     score_match = re.search(r"\*\*Overall Quality Score:\*\*\s*\[?(\d+)", text)
     score = int(score_match.group(1)) if score_match else 5
 
-    gaps = []
-    gap_pattern = re.findall(r"\d+\.\s+\"(.+?)\"", text)
-    # Take max 3 gaps
-    gaps = gap_pattern[:3]
+    gaps: list[str] = []
+
+    def _extract_from_block(block: str) -> list[str]:
+        quoted = re.findall(r'\d+\.\s+"(.+?)"', block)
+        if quoted:
+            return quoted[:3]
+        unquoted = re.findall(r'\d+\.\s+(?!")(.+?)(?:\s+[—–-]\s+impact:|$)', block, re.MULTILINE)
+        return [u.strip() for u in unquoted if u.strip()][:3]
+
+    # Strategy 1: "Additional Research Queries" section (preferred — these are actual search queries)
+    queries_match = re.search(
+        r"\*\*Additional Research Queries[^*]*\*\*(.+?)(?:\*\*|$)", text, re.DOTALL | re.IGNORECASE
+    )
+    if queries_match:
+        gaps = _extract_from_block(queries_match.group(1))
+
+    # Strategy 2: "Identified Gaps" section
+    if not gaps:
+        gaps_match = re.search(
+            r"\*\*Identified Gaps[^*]*\*\*(.+?)(?:\*\*|$)", text, re.DOTALL | re.IGNORECASE
+        )
+        if gaps_match:
+            gaps = _extract_from_block(gaps_match.group(1))
+
+    # Strategy 3: any quoted numbered item anywhere
+    if not gaps:
+        gaps = re.findall(r'\d+\.\s+"(.+?)"', text)[:3]
 
     return {
         "score": score,

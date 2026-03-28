@@ -1,6 +1,7 @@
 import pytest
 
-from app.tools.web_search import SearchResult, get_eet_score, web_search
+from app.tools.models import SearchResult, get_eet_score
+from app.tools.web_search import web_search
 from app.tools.arxiv_search import arxiv_search
 from app.tools.wikipedia_search import wikipedia_search
 
@@ -37,7 +38,10 @@ async def test_web_search():
 
 @pytest.mark.asyncio
 async def test_arxiv_search():
-    results = await arxiv_search("attention mechanism", max_results=2)
+    try:
+        results = await arxiv_search("attention mechanism", max_results=2)
+    except Exception:
+        pytest.skip("ArXiv API unavailable or rate limited")
     assert isinstance(results, list)
     assert len(results) <= 2
     if results:
@@ -50,3 +54,64 @@ async def test_wikipedia_search():
     assert isinstance(results, list)
     if results:
         assert results[0].eet_score == "medium"
+
+
+# --- E-E-A-T domain expansion tests ---
+
+def test_eet_score_new_high_domains():
+    assert get_eet_score("https://openai.com/research/gpt4") == "high"
+    assert get_eet_score("https://anthropic.com/news/claude") == "high"
+    assert get_eet_score("https://huggingface.co/models") == "high"
+    assert get_eet_score("https://pytorch.org/docs/stable/") == "high"
+    assert get_eet_score("https://tensorflow.org/guide") == "high"
+    assert get_eet_score("https://docs.python.org/3/library/") == "high"
+    assert get_eet_score("https://developer.mozilla.org/en-US/docs/") == "high"
+    assert get_eet_score("https://learn.microsoft.com/en-us/azure/") == "high"
+    assert get_eet_score("https://pubmed.ncbi.nlm.nih.gov/12345678/") == "high"
+
+
+def test_eet_score_subdomain_pattern_high():
+    assert get_eet_score("https://docs.djangoproject.com/en/5.0/") == "high"
+    assert get_eet_score("https://docs.github.com/en/actions") == "high"
+    assert get_eet_score("https://developer.apple.com/documentation/") == "high"
+    assert get_eet_score("https://requests.readthedocs.io/en/latest/") == "high"
+    assert get_eet_score("https://api.slack.com/methods") == "high"
+    assert get_eet_score("https://learn.hashicorp.com/terraform") == "high"
+
+
+def test_eet_score_demotions():
+    assert get_eet_score("https://medium.com/@author/some-post") == "low"
+    assert get_eet_score("https://stackoverflow.com/questions/123") == "low"
+
+
+def test_eet_score_github_still_medium():
+    assert get_eet_score("https://github.com/org/repo") == "medium"
+
+
+def test_eet_score_docs_in_path_does_not_elevate():
+    # "docs" in URL path but host is not docs.*
+    assert get_eet_score("https://example-blog.com/docs/something") == "low"
+
+
+# --- web_search: no empty-URL sources ---
+
+@pytest.mark.asyncio
+async def test_web_search_no_empty_url_sources(monkeypatch):
+    import app.tools.web_search as ws_module
+
+    class FakeTavily:
+        async def search(self, query, max_results=3):
+            return {
+                "answer": "A synthesized answer that should be dropped",
+                "results": [
+                    {"title": "Real Source", "url": "https://example.gov/page", "content": "content"},
+                    {"title": "No URL Result", "url": "", "content": "orphan"},
+                ],
+            }
+
+    monkeypatch.setattr(ws_module, "AsyncTavilyClient", lambda api_key: FakeTavily())
+    results = await ws_module.web_search("test query", max_results=3)
+    urls = [r.url for r in results]
+    assert "" not in urls
+    assert "https://example.gov/page" in urls
+    assert len(results) == 1

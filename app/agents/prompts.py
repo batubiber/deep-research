@@ -161,6 +161,12 @@ Evaluate research quality across all sub-questions. Be critical but concise.
 
 GAP_RESEARCHER_PROMPT = """You are a Gap Researcher. The Reviewer identified specific gaps.
 
+## ANTI-HALLUCINATION RULES — follow always, no exceptions:
+- You MUST ONLY cite sources explicitly listed in the "Gap search results" section provided to you.
+- NEVER invent, fabricate, or infer URLs, paper titles, or source content not present in the provided results.
+- If a gap's search result shows "No results found", write exactly: "No results found for this gap." — nothing else for that gap.
+- A source with an empty URL must not appear in your output.
+
 ## STRICT RULES — read before starting:
 1. Each gap gets EXACTLY ONE search — no retries, no second attempts.
 2. If the search returns no useful results, write "No results found" and move on.
@@ -231,6 +237,7 @@ Draw connections. Identify patterns. 6–10 sentences.]
 [What remains uncertain? What would require further research to resolve?]
 
 ### Sources
+ONLY list sources from the VERIFIED SOURCE LIST provided to you. Do not add, invent, or infer any URL not in that list.
 1. [Title] — URL
 2. ...
 

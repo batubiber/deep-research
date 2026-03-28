@@ -10,19 +10,10 @@ async def web_search(query: str, max_results: int = 3) -> list[SearchResult]:
 
     results = []
 
-    # Add the synthesized answer as the first source (highest value)
-    answer = response.get("answer", "")
-    if answer:
-        results.append(SearchResult(
-            title="Tavily Research Summary",
-            url="",
-            content=answer,
-            eet_score="high",
-        ))
-
-    # Add individual sources
     for r in response.get("results", [])[:max_results]:
         url = r.get("url", "")
+        if not url:
+            continue
         results.append(SearchResult(
             title=r.get("title", ""),
             url=url,

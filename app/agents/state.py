@@ -21,6 +21,7 @@ class ResearchState(TypedDict):
 
     # Pipeline outputs
     raw_sources: Annotated[list, operator.add]
+    deduplicated_sources: list[dict]
     analysis: str
     review: dict
     gap_findings: str

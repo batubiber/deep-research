@@ -7,6 +7,18 @@ from app.llm.client import chat, strip_thinking
 async def writer_node(state: ResearchState) -> dict:
     review = state.get("review", {})
 
+    # Build a verified source list from deduplicated sources (only citable entries with real URLs)
+    deduped = state.get("deduplicated_sources", [])
+    citable = [
+        s for s in deduped
+        if s.get("url") and "researcher_analysis" not in s
+    ]
+    source_lines = [
+        f"{i}. [{s['eet_score'].upper()}] {s['title']} — {s['url']}"
+        for i, s in enumerate(citable, 1)
+    ]
+    sources_block = "\n".join(source_lines) if source_lines else "No citable sources available."
+
     user_msg = (
         f"Main question: {state.get('main_question', state['query'])}\n\n"
         f"Complexity: {state.get('complexity', 'moderate')}\n\n"
@@ -14,7 +26,10 @@ async def writer_node(state: ResearchState) -> dict:
         f"--- REVIEW ---\n{review.get('full_review', '')}\n"
         f"Quality Score: {review.get('score', 'N/A')}\n\n"
         f"--- GAP RESEARCH ---\n{state.get('gap_findings', '')}\n\n"
-        f"Total raw sources collected: {len(state.get('raw_sources', []))}\n\n"
+        f"--- VERIFIED SOURCE LIST ({len(citable)} sources) ---\n"
+        f"{sources_block}\n\n"
+        f"IMPORTANT: In the Sources section, ONLY list URLs from the VERIFIED SOURCE LIST above. "
+        f"Do not invent or infer any URL not listed above.\n\n"
         f"Write the comprehensive final report following your output format."
     )
 

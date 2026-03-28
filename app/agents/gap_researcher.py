@@ -18,10 +18,11 @@ def _select_gap_tool(gap_query: str):
 
 async def gap_researcher_node(state: ResearchState) -> dict:
     review = state.get("review", {})
-    gaps = review.get("gaps", [])
+    gaps = review.get("gaps", [])[:3]
 
-    # Max 3 gaps enforced
-    gaps = gaps[:3]
+    # Guard: no gaps identified — skip LLM entirely
+    if not gaps:
+        return {"gap_findings": "No gaps identified by reviewer.", "raw_sources": []}
 
     # Search for each gap
     gap_results = []
@@ -45,6 +46,10 @@ async def gap_researcher_node(state: ResearchState) -> dict:
                 "eet_score": "low",
                 "gap_query": gap_query,
             })
+
+    # Guard: all searches returned empty — skip LLM
+    if not any(g.get("content") for g in gap_results):
+        return {"gap_findings": "Gap searches returned no results.", "raw_sources": gap_results}
 
     # Build context for LLM
     gap_text = ""
