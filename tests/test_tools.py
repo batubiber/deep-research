@@ -1,9 +1,13 @@
+import os
+
 import pytest
 
 from app.tools.models import SearchResult, get_eet_score
 from app.tools.web_search import web_search
 from app.tools.arxiv_search import arxiv_search
 from app.tools.wikipedia_search import wikipedia_search
+
+_has_tavily_key = bool(os.environ.get("TAVILY_API_KEY", ""))
 
 
 # ---- helpers for building synthetic content with known signal levels ----
@@ -156,9 +160,72 @@ async def test_wikipedia_search():
 #  web_search: no empty-URL sources
 # ============================================================
 
+# ============================================================
+#  Tavily search tests (skip when TAVILY_API_KEY not set)
+# ============================================================
+
 @pytest.mark.asyncio
-async def test_web_search_no_empty_url_sources(monkeypatch):
+@pytest.mark.skipif(not _has_tavily_key, reason="TAVILY_API_KEY not set")
+async def test_tavily_search():
+    from app.tools.tavily_search import tavily_search
+    results = await tavily_search("Python programming", max_results=2)
+    assert isinstance(results, list)
+    assert len(results) <= 2
+    if results:
+        assert isinstance(results[0], SearchResult)
+        assert results[0].url  # no empty URLs
+
+
+@pytest.mark.asyncio
+async def test_web_search_tavily_dispatch(monkeypatch):
+    """web_search dispatches to tavily_search when SEARCH_PROVIDER=tavily."""
     import app.tools.web_search as ws_module
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "search_provider", "tavily")
+
+    called = {}
+
+    async def fake_tavily(query, max_results=3):
+        called["tavily"] = True
+        return [SearchResult(title="Tavily", url="https://example.com", content="ok", eet_score="medium")]
+
+    import app.tools.tavily_search as ts_module
+    monkeypatch.setattr(ts_module, "tavily_search", fake_tavily)
+
+    results = await ws_module.web_search("test", max_results=1)
+    assert called.get("tavily")
+    assert results[0].title == "Tavily"
+
+
+@pytest.mark.asyncio
+async def test_web_search_ddg_dispatch(monkeypatch):
+    """web_search dispatches to DuckDuckGo when SEARCH_PROVIDER=duckduckgo."""
+    import app.tools.web_search as ws_module
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "search_provider", "duckduckgo")
+
+    called = {}
+
+    async def fake_ddg(query, max_results=3):
+        called["ddg"] = True
+        return [SearchResult(title="DDG", url="https://example.com", content="ok", eet_score="medium")]
+
+    monkeypatch.setattr(ws_module, "_ddg_search", fake_ddg)
+
+    results = await ws_module.web_search("test", max_results=1)
+    assert called.get("ddg")
+    assert results[0].title == "DDG"
+
+
+# ============================================================
+#  web_search: no empty-URL sources
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_tavily_search_no_empty_url_sources(monkeypatch):
+    import app.tools.tavily_search as ts_module
 
     class FakeTavily:
         async def search(self, query, max_results=3):
@@ -172,9 +239,9 @@ async def test_web_search_no_empty_url_sources(monkeypatch):
     async def fake_enrich(url, fallback):
         return fallback
 
-    monkeypatch.setattr(ws_module, "AsyncTavilyClient", lambda api_key: FakeTavily())
-    monkeypatch.setattr(ws_module, "_enrich_content", fake_enrich)
-    results = await ws_module.web_search("test query", max_results=3)
+    monkeypatch.setattr(ts_module, "AsyncTavilyClient", lambda api_key: FakeTavily())
+    monkeypatch.setattr(ts_module, "_enrich_content", fake_enrich)
+    results = await ts_module.tavily_search("test query", max_results=3)
     urls = [r.url for r in results]
     assert "" not in urls
     assert "https://example.gov/page" in urls

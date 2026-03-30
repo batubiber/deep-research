@@ -2,6 +2,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Search provider: "duckduckgo" (default) or "tavily"
+    search_provider: str = "duckduckgo"
+
     # Tavily
     tavily_api_key: str = ""
 
