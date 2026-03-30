@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -15,6 +15,8 @@ async def lifespan(app: FastAPI):
     print(f"Deep Research API starting on {settings.api_host}:{settings.api_port}")
     print(f"vLLM endpoint: {settings.vllm_base_url}")
     print(f"Model: {settings.vllm_model_name}")
+    print(f"API auth: {'enabled' if settings.api_key else 'disabled'}")
+    print(f"CORS origins: {settings.cors_origins}")
     yield
     # Shutdown
     print("Deep Research API shutting down")
@@ -29,10 +31,21 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    """If API_KEY is configured, require it on all /api/* routes."""
+    if settings.api_key and request.url.path.startswith("/api/"):
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header.removeprefix("Bearer ").strip()
+        if token != settings.api_key:
+            raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return await call_next(request)
 
 app.include_router(router, prefix="/api/v1")
 

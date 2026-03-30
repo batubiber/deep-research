@@ -1,7 +1,7 @@
 // frontend/src/hooks/useResearch.ts
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import type { AgentName, ChatMessage, ResearchSession, Source } from '../types'
-import { streamResearch, type SSEEvent } from '../lib/api'
+import { startTask, streamTaskEvents, cancelTask, getTaskStatus, type SSEEvent } from '../lib/api'
 import { parseSources } from '../lib/parseReport'
 
 export type ResearchState = 'idle' | 'running' | 'done' | 'error'
@@ -13,10 +13,13 @@ const AGENT_ORDER: AgentName[] = [
 const DISPLAY_NAMES: Record<AgentName, string> = {
   planner: 'Planner',
   research_assistant: 'Researcher',
+  summarizer: 'Summarizer',
   analyst: 'Analyst',
   reviewer: 'Reviewer',
   gap_researcher: 'Gap Researcher',
+  gap_integrator: 'Gap Integrator',
   writer: 'Writer',
+  citation_verifier: 'Citation Verifier',
 }
 
 function nextAgent(current: AgentName): AgentName | null {
@@ -25,6 +28,7 @@ function nextAgent(current: AgentName): AgentName | null {
 }
 
 const HISTORY_KEY = 'deep-research-history'
+const ACTIVE_TASK_KEY = 'deep-research-active-task'
 const MAX_HISTORY = 20
 
 function loadHistory(): ResearchSession[] {
@@ -47,7 +51,6 @@ function trimMessagesForStorage(messages: ChatMessage[]): ChatMessage[] {
   return messages.map(m => {
     if (m.role === 'user') return m
     const data = { ...m.data }
-    // Trim source content fields to save localStorage space
     if (data.sources) {
       data.sources = data.sources.map((s: any) => ({ ...s, content: s.content?.slice(0, 200) ?? '' }))
     }
@@ -58,6 +61,24 @@ function trimMessagesForStorage(messages: ChatMessage[]): ChatMessage[] {
   })
 }
 
+function saveActiveTask(taskId: string, query: string): void {
+  localStorage.setItem(ACTIVE_TASK_KEY, JSON.stringify({ taskId, query }))
+}
+
+function loadActiveTask(): { taskId: string; query: string } | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_TASK_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function clearActiveTask(): void {
+  localStorage.removeItem(ACTIVE_TASK_KEY)
+}
+
+
 export function useResearch() {
   const [researchState, setResearchState] = useState<ResearchState>('idle')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -65,6 +86,7 @@ export function useResearch() {
   const [activeSession, setActiveSession] = useState<ResearchSession | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const taskIdRef = useRef<string | null>(null)
   const researcherCountRef = useRef({ done: 0, total: 0 })
 
   // Derive report and sources from messages
@@ -79,17 +101,56 @@ export function useResearch() {
   }, [messages])
 
   const handleEvent = useCallback((event: SSEEvent) => {
+    if (event.node === '__cancelled__') {
+      setResearchState('idle')
+      setError('Research was cancelled')
+      clearActiveTask()
+      return
+    }
+
+    if (event.node === '__error__') {
+      setError(event.error ?? 'Research failed')
+      setResearchState('error')
+      return
+    }
+
     if (event.node === '__done__') {
-      // Add a synthetic done message with the report
-      setMessages(prev => [
-        ...prev,
-        {
+      const fullReport = event.report ?? ''
+      const parsedSources = parseSources(fullReport)
+      const count = event.sources_count ?? parsedSources.length
+
+      setResearchState('done')
+      clearActiveTask()
+
+      setMessages(prev => {
+        const withDone = [...prev, {
           id: crypto.randomUUID(),
           role: 'agent' as const,
           status: 'done' as const,
           data: event,
-        },
-      ])
+        }]
+
+        // Find the query from user message
+        const query = prev.find(m => m.role === 'user')?.data?.query ?? ''
+
+        const session: ResearchSession = {
+          id: crypto.randomUUID(),
+          query,
+          timestamp: Date.now(),
+          messages: trimMessagesForStorage(withDone),
+          report: fullReport,
+          sources: parsedSources,
+          sourcesCount: count,
+        }
+        setActiveSession(session)
+        setHistory(prev => {
+          const updated = [session, ...prev].slice(0, MAX_HISTORY)
+          persistHistory(updated)
+          return updated
+        })
+
+        return withDone
+      })
       return
     }
 
@@ -100,14 +161,11 @@ export function useResearch() {
       const updated = [...prev]
 
       if (agentName === 'research_assistant') {
-        // Each researcher event is a separate message
-        // Find the running placeholder and update it, or handle completed ones
         const runningIdx = updated.findIndex(
           m => m.agentName === 'research_assistant' && m.status === 'running'
         )
 
         if (runningIdx >= 0) {
-          // Update the running placeholder to done with data
           updated[runningIdx] = {
             ...updated[runningIdx],
             status: 'done',
@@ -115,7 +173,6 @@ export function useResearch() {
             data: event,
           }
         } else {
-          // No running placeholder — add completed directly
           updated.push({
             id: crypto.randomUUID(),
             role: 'agent',
@@ -132,7 +189,6 @@ export function useResearch() {
         const { done, total } = researcherCountRef.current
 
         if (done < total) {
-          // Add next researcher placeholder
           updated.push({
             id: crypto.randomUUID(),
             role: 'agent',
@@ -143,7 +199,6 @@ export function useResearch() {
             data: {},
           })
         } else {
-          // All researchers done — start analyst
           updated.push({
             id: crypto.randomUUID(),
             role: 'agent',
@@ -186,7 +241,6 @@ export function useResearch() {
           data: {},
         })
       } else if (agentName !== 'writer') {
-        // Start the next agent in the pipeline
         const next = nextAgent(agentName)
         if (next && next !== 'research_assistant') {
           updated.push({
@@ -205,11 +259,39 @@ export function useResearch() {
     })
   }, [])
 
-  const startResearch = useCallback(async (query: string) => {
+  // -----------------------------------------------------------------------
+  // Connect to a task's event stream (used for both new and reconnected)
+  // -----------------------------------------------------------------------
+  const connectToTask = useCallback(async (taskId: string, _query?: string) => {
     abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
+    taskIdRef.current = taskId
 
+    try {
+      await streamTaskEvents(taskId, handleEvent, ctrl.signal)
+      // Stream ended — check if we ever got __done__
+      setResearchState(prev => {
+        if (prev === 'running') {
+          setError('Research stream closed without a final report')
+          clearActiveTask()
+          return 'error'
+        }
+        return prev
+      })
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      setError((err as Error).message ?? 'Research failed')
+      setResearchState('error')
+      clearActiveTask()
+    }
+  }, [handleEvent])
+
+  // -----------------------------------------------------------------------
+  // Start a new research
+  // -----------------------------------------------------------------------
+  const startResearch = useCallback(async (query: string) => {
+    abortRef.current?.abort()
     researcherCountRef.current = { done: 0, total: 0 }
 
     const userMsg: ChatMessage = {
@@ -235,63 +317,86 @@ export function useResearch() {
     setActiveSession(null)
 
     try {
-      await streamResearch(
-        query,
-        (event) => {
-          if (event.node === '__done__') {
-            const fullReport = event.report ?? ''
-            const parsedSources = parseSources(fullReport)
-            const count = event.sources_count ?? parsedSources.length
-
-            setResearchState('done')
-
-            setMessages(prev => {
-              const withDone = [...prev, {
-                id: crypto.randomUUID(),
-                role: 'agent' as const,
-                status: 'done' as const,
-                data: event,
-              }]
-
-              const session: ResearchSession = {
-                id: crypto.randomUUID(),
-                query,
-                timestamp: Date.now(),
-                messages: trimMessagesForStorage(withDone),
-                report: fullReport,
-                sources: parsedSources,
-                sourcesCount: count,
-              }
-              setActiveSession(session)
-              setHistory(prev => {
-                const updated = [session, ...prev].slice(0, MAX_HISTORY)
-                persistHistory(updated)
-                return updated
-              })
-
-              return withDone
-            })
-          } else {
-            handleEvent(event)
-          }
-        },
-        ctrl.signal,
-      )
-      // Only set error if __done__ was never received (state still 'running')
-      setResearchState(prev => {
-        if (prev === 'running') {
-          setError('Research stream closed without a final report')
-          return 'error'
-        }
-        return prev
-      })
+      const taskId = await startTask(query)
+      saveActiveTask(taskId, query)
+      await connectToTask(taskId)
     } catch (err) {
-      if ((err as Error).name === 'AbortError') return
-      setError((err as Error).message ?? 'Research failed')
+      setError((err as Error).message ?? 'Failed to start research')
       setResearchState('error')
+      clearActiveTask()
     }
-  }, [handleEvent])
+  }, [connectToTask])
 
+  // -----------------------------------------------------------------------
+  // Stop running research
+  // -----------------------------------------------------------------------
+  const stopResearch = useCallback(async () => {
+    const taskId = taskIdRef.current
+    if (taskId) {
+      await cancelTask(taskId).catch(() => {})
+    }
+    abortRef.current?.abort()
+    clearActiveTask()
+    taskIdRef.current = null
+
+    // Mark any running messages as done
+    setMessages(prev => prev.map(m =>
+      m.status === 'running' ? { ...m, status: 'done' as const, finishedAt: Date.now() } : m
+    ))
+    setResearchState('idle')
+    setError('Research was stopped')
+  }, [])
+
+  // -----------------------------------------------------------------------
+  // Reconnect to active task on mount (survives page refresh)
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    const saved = loadActiveTask()
+    if (!saved) return
+
+    let cancelled = false
+
+    ;(async () => {
+      const status = await getTaskStatus(saved.taskId).catch(() => null)
+      if (cancelled || !status) {
+        // Server restarted or task gone — clean up
+        clearActiveTask()
+        return
+      }
+
+      // Set up initial UI state for reconnection
+      researcherCountRef.current = { done: 0, total: 0 }
+
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        status: 'done',
+        data: { query: saved.query },
+      }
+      const plannerMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'agent',
+        agentName: 'planner',
+        displayName: DISPLAY_NAMES.planner,
+        status: 'running',
+        startedAt: Date.now(),
+        data: {},
+      }
+
+      setResearchState('running')
+      setMessages([userMsg, plannerMsg])
+      setError(null)
+
+      // Reconnect — events replay from the beginning
+      await connectToTask(saved.taskId)
+    })()
+
+    return () => { cancelled = true }
+  }, [connectToTask])
+
+  // -----------------------------------------------------------------------
+  // Session management
+  // -----------------------------------------------------------------------
   const loadSession = useCallback((session: ResearchSession) => {
     abortRef.current?.abort()
     setActiveSession(session)
@@ -301,7 +406,6 @@ export function useResearch() {
     if (session.messages && session.messages.length > 0) {
       setMessages(session.messages)
     } else {
-      // Legacy session — synthesize minimal messages
       const msgs: ChatMessage[] = [
         {
           id: crypto.randomUUID(),
@@ -346,6 +450,7 @@ export function useResearch() {
     activeSession,
     error,
     startResearch,
+    stopResearch,
     loadSession,
     newResearch,
   }

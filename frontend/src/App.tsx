@@ -12,6 +12,7 @@ export default function App() {
     activeSession,
     error,
     startResearch,
+    stopResearch,
     loadSession,
     newResearch,
   } = useResearch()
@@ -44,6 +45,7 @@ export default function App() {
           messages={messages}
           error={error}
           onSendMessage={startResearch}
+          onStop={stopResearch}
           isRunning={researchState === 'running'}
         />
       </div>

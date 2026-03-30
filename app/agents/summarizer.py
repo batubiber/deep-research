@@ -25,7 +25,7 @@ async def summarizer_node(state: ResearchState) -> dict:
             source_text += f"\n### {s['title']} [{s['eet_score'].upper()}]\n"
             source_text += f"URL: {s['url']}\n"
             content = s.get("content", "")
-            source_text += f"Content: {content[:8000]}\n"
+            source_text += f"Content: {content[:30_000]}\n"
 
         sq_question = group[0].get("sub_question", f"Sub-question {sq_id}")
         user_msg = (

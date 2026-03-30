@@ -21,8 +21,9 @@ _STOP_WORDS = {
     "for", "of", "and", "or", "this", "that", "it", "with", "as", "by", "be",
 }
 
-# Max chars per source passed to LLM (~5K tokens each; 3 sources ≈ 15K input tokens)
-_MAX_CHARS_PER_SOURCE = 20_000
+# Max chars per source passed to LLM. At ~4 chars/token, 60k ≈ 15k tokens.
+# With 265k context and up to 7 sources, total source content ≈ 105k tokens — well within budget.
+_MAX_CHARS_PER_SOURCE = 60_000
 
 
 def _semantic_chunk(content: str, query: str) -> str:
@@ -167,14 +168,20 @@ async def researcher_node(state: dict) -> dict:
     search_query = sub_question["question"]
     previous_queries: list[str] = []
     max_rounds = settings.researcher_max_rounds
-    results_per_search = settings.researcher_results_per_search
+    # ArXiv papers are the highest-quality sources — use a dedicated (larger) result count
+    results_per_search = (
+        settings.arxiv_results_per_search
+        if tool_name == "arxiv"
+        else settings.researcher_results_per_search
+    )
 
     for round_num in range(max_rounds):
         previous_queries.append(search_query)
 
         try:
             results = await search_fn(search_query, max_results=results_per_search)
-        except Exception:
+        except Exception as e:
+            logger.error("Search failed (tool=%s, query=%r): %s", tool_name, search_query, e)
             results = []
 
         # Fallback to web_search if primary tool returned nothing (first round only)
@@ -182,7 +189,8 @@ async def researcher_node(state: dict) -> dict:
             try:
                 results = await web_search(search_query, max_results=results_per_search)
                 tool_name = "web_search"
-            except Exception:
+            except Exception as e:
+                logger.error("Fallback web_search failed (query=%r): %s", search_query, e)
                 results = []
 
         # Add new sources (skip duplicates by URL)

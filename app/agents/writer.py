@@ -53,7 +53,7 @@ async def writer_node(state: ResearchState) -> dict:
         messages=messages,
         thinking_budget=settings.thinking_budget_writer,
         temperature=settings.temperature_writer,
-        max_tokens=16384,
+        max_tokens=32768,
     )
     cleaned = strip_thinking(response)
 

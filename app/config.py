@@ -20,13 +20,13 @@ class Settings(BaseSettings):
     vllm_api_key: str = "a"
     vllm_model_name: str = "qwen3-5"
 
-    # Thinking budgets
+    # Thinking budgets (model has 265k context; larger budgets improve reasoning quality)
     thinking_budget_planner: int = 1024
-    thinking_budget_researcher: int = 4096
-    thinking_budget_analyst: int = 2048
+    thinking_budget_researcher: int = 8192   # increased: researchers now analyze 3x more content
+    thinking_budget_analyst: int = 4096      # increased: analyst receives richer summarizer output
     thinking_budget_reviewer: int = 1024
     thinking_budget_gap_researcher: int = 4096
-    thinking_budget_writer: int = 8192
+    thinking_budget_writer: int = 16384      # increased: deeper synthesis for longer reports
     thinking_budget_summarizer: int = 2048
     thinking_budget_citation_verifier: int = 1024
 
@@ -41,15 +41,23 @@ class Settings(BaseSettings):
 
     # Researcher iteration
     researcher_max_rounds: int = 3
-    researcher_results_per_search: int = 5
+    researcher_results_per_search: int = 7   # increased: broader coverage per search round
+
+    # ArXiv — papers are the highest-quality sources, enrich as many as possible
+    arxiv_results_per_search: int = 10       # fetch more papers (abstracts are cheap)
+    arxiv_enrich_count: int = 7              # how many get full HTML via Jina (parallel fetches)
 
     # Parallelism
     max_parallel_researchers: int = 4
+
+    # LLM request timeout (seconds) — large models like 122B need more than 120s
+    llm_timeout: float = 300.0
 
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8001
     api_key: str = ""
+    cors_origins: list[str] = ["http://localhost:5173"]
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -28,7 +28,7 @@ async def gap_integrator_node(state: ResearchState) -> dict:
     response = await chat(
         messages=messages,
         thinking_budget=settings.thinking_budget_gap_researcher,
-        temperature=settings.temperature_analyst,
+        temperature=settings.temperature_gap_researcher,
     )
     cleaned = strip_thinking(response)
 

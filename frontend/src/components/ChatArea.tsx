@@ -9,6 +9,7 @@ interface Props {
   messages: ChatMessage[]
   error: string | null
   onSendMessage: (query: string) => void
+  onStop: () => void
   isRunning: boolean
 }
 
@@ -207,7 +208,7 @@ function EmptyState() {
   )
 }
 
-export function ChatArea({ messages, error, onSendMessage, isRunning }: Props) {
+export function ChatArea({ messages, error, onSendMessage, onStop, isRunning }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const isNearBottom = useRef(true)
 
@@ -272,7 +273,7 @@ export function ChatArea({ messages, error, onSendMessage, isRunning }: Props) {
       <ExportButtons messages={messages} />
 
       {/* Input */}
-      <ChatInput onSend={onSendMessage} isRunning={isRunning} />
+      <ChatInput onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
     </div>
   )
 }
