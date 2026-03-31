@@ -48,10 +48,10 @@ class Settings(BaseSettings):
     arxiv_enrich_count: int = 7              # how many get full HTML via Jina (parallel fetches)
 
     # Parallelism
-    max_parallel_researchers: int = 4
+    max_parallel_researchers: int = 5
 
-    # LLM request timeout (seconds) — large models like 122B need more than 120s
-    llm_timeout: float = 300.0
+    # LLM request timeout (seconds) — 122B FP8 on 8×A100: worst-case call ~40s, 90s = 2× headroom
+    llm_timeout: float = 90.0
 
     # API
     api_host: str = "0.0.0.0"

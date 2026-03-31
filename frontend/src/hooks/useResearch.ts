@@ -111,6 +111,11 @@ export function useResearch() {
     if (event.node === '__error__') {
       setError(event.error ?? 'Research failed')
       setResearchState('error')
+      clearActiveTask()
+      taskIdRef.current = null
+      setMessages(prev => prev.map(m =>
+        m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
+      ))
       return
     }
 
@@ -440,6 +445,23 @@ export function useResearch() {
     setError(null)
   }, [])
 
+  const deleteSession = useCallback((id: string) => {
+    setHistory(prev => {
+      const next = prev.filter(s => s.id !== id)
+      persistHistory(next)
+      return next
+    })
+    setActiveSession(prev => {
+      if (prev?.id === id) {
+        setResearchState('idle')
+        setMessages([])
+        setError(null)
+        return null
+      }
+      return prev
+    })
+  }, [])
+
   return {
     researchState,
     messages,
@@ -453,5 +475,6 @@ export function useResearch() {
     stopResearch,
     loadSession,
     newResearch,
+    deleteSession,
   }
 }

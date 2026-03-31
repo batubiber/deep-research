@@ -1,4 +1,4 @@
-import { PlusCircle, Clock } from 'lucide-react'
+import { PlusCircle, Clock, Trash2 } from 'lucide-react'
 import type { ResearchSession } from '../types'
 
 interface Props {
@@ -6,6 +6,7 @@ interface Props {
   activeId?: string
   onSelect: (session: ResearchSession) => void
   onNew: () => void
+  onDelete: (id: string) => void
 }
 
 function formatDate(ts: number): string {
@@ -18,7 +19,7 @@ function formatDate(ts: number): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-export function Sidebar({ history, activeId, onSelect, onNew }: Props) {
+export function Sidebar({ history, activeId, onSelect, onNew, onDelete }: Props) {
   return (
     <div className="w-56 flex-shrink-0 border-r border-[#30363d] bg-[#0d1117] flex flex-col overflow-hidden">
       {/* Header */}
@@ -48,24 +49,35 @@ export function Sidebar({ history, activeId, onSelect, onNew }: Props) {
           </p>
         ) : (
           history.map(session => (
-            <button
+            <div
               key={session.id}
-              onClick={() => onSelect(session)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg mb-1 transition-colors group ${
+              className={`relative rounded-lg mb-1 group ${
                 session.id === activeId
                   ? 'bg-[#1f6feb]/15 border border-[#388bfd]/30'
                   : 'hover:bg-[#161b22] border border-transparent'
               }`}
             >
-              <p className={`text-xs font-medium line-clamp-2 leading-snug ${
-                session.id === activeId ? 'text-[#79c0ff]' : 'text-[#c9d1d9] group-hover:text-[#e6edf3]'
-              }`}>
-                {session.query}
-              </p>
-              <p className="text-[10px] text-[#484f58] mt-1">
-                {formatDate(session.timestamp)}
-              </p>
-            </button>
+              <button
+                onClick={() => onSelect(session)}
+                className="w-full text-left px-3 py-2.5 pr-8"
+              >
+                <p className={`text-xs font-medium line-clamp-2 leading-snug ${
+                  session.id === activeId ? 'text-[#79c0ff]' : 'text-[#c9d1d9] group-hover:text-[#e6edf3]'
+                }`}>
+                  {session.query}
+                </p>
+                <p className="text-[10px] text-[#484f58] mt-1">
+                  {formatDate(session.timestamp)}
+                </p>
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onDelete(session.id) }}
+                className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[#3d1218] text-[#484f58] hover:text-[#f85149] transition-all"
+                title="Delete"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
           ))
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Loader2, FlaskConical, ExternalLink } from 'lucide-react'
+import { CheckCircle2, Loader2, XCircle, FlaskConical, ExternalLink } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { EEATBadge } from './EEATBadge'
@@ -314,11 +314,16 @@ export function AgentMessage({ message }: Props) {
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
           {status === 'running' && <Loader2 className="w-3.5 h-3.5 text-[#58a6ff] animate-spin" />}
-          {status === 'done' && <CheckCircle2 className="w-3.5 h-3.5 text-[#3fb950]" />}
+          {status === 'done'    && <CheckCircle2 className="w-3.5 h-3.5 text-[#3fb950]" />}
+          {status === 'error'   && <XCircle className="w-3.5 h-3.5 text-[#f85149]" />}
           <span className={`text-xs font-medium ${
-            status === 'running' ? 'text-[#58a6ff]' : 'text-[#3fb950]'
+            status === 'running' ? 'text-[#58a6ff]' :
+            status === 'error'   ? 'text-[#f85149]' :
+            'text-[#3fb950]'
           }`}>
-            {status === 'done' ? 'Finished' : (RUNNING_LABELS[agentName ?? ''] ?? 'Processing...')}
+            {status === 'done'  ? 'Finished' :
+             status === 'error' ? 'Interrupted' :
+             (RUNNING_LABELS[agentName ?? ''] ?? 'Processing...')}
             {elapsed && ` in ${elapsed}`}
           </span>
         </div>

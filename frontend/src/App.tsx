@@ -15,6 +15,7 @@ export default function App() {
     stopResearch,
     loadSession,
     newResearch,
+    deleteSession,
   } = useResearch()
 
   return (
@@ -40,6 +41,7 @@ export default function App() {
           activeId={activeSession?.id}
           onSelect={loadSession}
           onNew={newResearch}
+          onDelete={deleteSession}
         />
         <ChatArea
           messages={messages}

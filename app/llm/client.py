@@ -17,7 +17,7 @@ def get_llm_client() -> AsyncOpenAI:
         _client = AsyncOpenAI(
             base_url=settings.vllm_base_url,
             api_key=settings.vllm_api_key,
-            max_retries=2,                    # retry on transient errors (not timeouts)
+            max_retries=0,                    # don't retry timeouts — 2 retries × 300s = 900s blowup
             timeout=settings.llm_timeout,     # configurable via LLM_TIMEOUT env var
         )
     return _client
@@ -33,13 +33,17 @@ async def chat(
     temperature: float,
     max_tokens: int = 8192,
 ) -> str:
+    """Stream the completion so vLLM detects client disconnect and stops generation
+    immediately when the task is cancelled or times out."""
     client = get_llm_client()
+    chunks: list[str] = []
     try:
-        response = await client.chat.completions.create(
+        stream = await client.chat.completions.create(
             model=settings.vllm_model_name,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            stream=True,
             extra_body={
                 "chat_template_kwargs": {
                     "enable_thinking": True,
@@ -47,11 +51,12 @@ async def chat(
                 }
             },
         )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                chunks.append(delta)
     except Exception as e:
         logger.error("LLM request failed: %s", e)
         raise
 
-    if not response.choices:
-        raise ValueError("LLM returned empty choices list")
-
-    return response.choices[0].message.content or ""
+    return "".join(chunks)
