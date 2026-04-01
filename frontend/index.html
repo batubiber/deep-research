@@ -4,8 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Deep Research</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      if (localStorage.getItem('deep-research-theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
   </head>
-  <body class="bg-[#0d1117] text-[#e6edf3] antialiased">
+  <body class="bg-[#F5F5F5] dark:bg-[#0d1117] text-[#1A1A2E] dark:text-[#e6edf3] antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -280,6 +280,10 @@ export function useResearch() {
         if (prev === 'running') {
           setError('Research stream closed without a final report')
           clearActiveTask()
+          taskIdRef.current = null
+          setMessages(msgs => msgs.map(m =>
+            m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
+          ))
           return 'error'
         }
         return prev
@@ -289,6 +293,10 @@ export function useResearch() {
       setError((err as Error).message ?? 'Research failed')
       setResearchState('error')
       clearActiveTask()
+      taskIdRef.current = null
+      setMessages(prev => prev.map(m =>
+        m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
+      ))
     }
   }, [handleEvent])
 
@@ -329,6 +337,10 @@ export function useResearch() {
       setError((err as Error).message ?? 'Failed to start research')
       setResearchState('error')
       clearActiveTask()
+      taskIdRef.current = null
+      setMessages(prev => prev.map(m =>
+        m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
+      ))
     }
   }, [connectToTask])
 

@@ -1,5 +1,9 @@
-import { useRef, useEffect, useCallback } from 'react'
-import { FlaskConical, FileText, FileDown } from 'lucide-react'
+import { useRef, useEffect, useCallback, useLayoutEffect } from 'react'
+import { animate, stagger } from 'animejs'
+import {
+  FlaskConical, FileText, FileDown, RefreshCw, PlusCircle,
+  GraduationCap, BarChart3, Cpu, BookOpen, ShieldCheck, TrendingUp,
+} from 'lucide-react'
 import { UserMessage } from './UserMessage'
 import { AgentMessage } from './AgentMessage'
 import { ChatInput } from './ChatInput'
@@ -10,6 +14,7 @@ interface Props {
   error: string | null
   onSendMessage: (query: string) => void
   onStop: () => void
+  onNew: () => void
   isRunning: boolean
 }
 
@@ -50,7 +55,6 @@ function buildFullMarkdown(messages: ChatMessage[]): string {
 
     const { agentName, data } = msg
 
-    // __done__ → final report (already shown in detail below, skip duplicate)
     if (!agentName && data?.node === '__done__') continue
 
     switch (agentName) {
@@ -112,7 +116,6 @@ function buildFullMarkdown(messages: ChatMessage[]): string {
     }
   }
 
-  // Append final report from __done__ if writer node message was skipped
   const doneMsg = messages.find(m => !m.agentName && m.data?.node === '__done__' && m.data?.report)
   if (doneMsg && !messages.some(m => m.agentName === 'writer' && m.data?.report)) {
     parts.push(`---\n\n## Final Report\n\n${doneMsg.data.report}`)
@@ -175,17 +178,17 @@ function ExportButtons({ messages }: { messages: ChatMessage[] }) {
   }
 
   return (
-    <div className="flex gap-2 px-4 pb-2 pt-1 border-t border-[#21262d]">
+    <div className="flex gap-2 px-4 pb-2 pt-1 border-t border-[#E5E7EB] dark:border-[#30363d]">
       <button
         onClick={handleDownloadMd}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#161b22] border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d] hover:border-[#8b949e] transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-white dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] text-[#374151] dark:text-[#c9d1d9] hover:bg-[#F5F5F5] dark:hover:bg-[#21262d] hover:border-[#9CA3AF] dark:hover:border-[#8b949e] transition-colors shadow-sm dark:shadow-none"
       >
         <FileText className="w-3.5 h-3.5" />
         Export MD
       </button>
       <button
         onClick={handleDownloadPdf}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#161b22] border border-[#30363d] text-[#c9d1d9] hover:bg-[#21262d] hover:border-[#8b949e] transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-white dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] text-[#374151] dark:text-[#c9d1d9] hover:bg-[#F5F5F5] dark:hover:bg-[#21262d] hover:border-[#9CA3AF] dark:hover:border-[#8b949e] transition-colors shadow-sm dark:shadow-none"
       >
         <FileDown className="w-3.5 h-3.5" />
         Export PDF
@@ -194,21 +197,142 @@ function ExportButtons({ messages }: { messages: ChatMessage[] }) {
   )
 }
 
-function EmptyState() {
+// --- Capability cards ---
+
+const CAPABILITIES = [
+  {
+    icon: GraduationCap,
+    title: 'Academic Research',
+    description: 'Find peer-reviewed papers on quantum computing advances',
+    dark: false,
+  },
+  {
+    icon: BarChart3,
+    title: 'Market Analysis',
+    description: 'Analyze the competitive landscape of EV battery manufacturers',
+    dark: false,
+  },
+  {
+    icon: Cpu,
+    title: 'Technical Deep Dive',
+    description: 'How does transformer architecture handle long-context inference?',
+    dark: true,
+  },
+  {
+    icon: BookOpen,
+    title: 'Literature Review',
+    description: 'Summarize recent findings on CRISPR gene therapy safety',
+    dark: false,
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Fact Checking',
+    description: 'Verify claims about renewable energy cost trends',
+    dark: false,
+  },
+  {
+    icon: TrendingUp,
+    title: 'Trend Analysis',
+    description: 'What are the emerging trends in edge AI deployment?',
+    dark: true,
+  },
+]
+
+function EmptyState({ onCardClick }: { onCardClick: (query: string) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const badge = el.querySelector('[data-anim="badge"]') as HTMLElement
+    const greeting = el.querySelector('[data-anim="greeting"]') as HTMLElement
+    const cards = el.querySelectorAll('[data-anim="card"]')
+
+    // Set initial hidden state synchronously to prevent flash
+    if (badge) { badge.style.opacity = '0'; badge.style.transform = 'scale(0.5)' }
+    if (greeting) { greeting.style.opacity = '0'; greeting.style.transform = 'translateY(20px)' }
+    cards.forEach(c => {
+      const card = c as HTMLElement
+      card.style.opacity = '0'
+      card.style.transform = 'translateY(30px) scale(0.95)'
+    })
+
+    // Badge — elastic scale-in
+    animate(badge, {
+      opacity: [0, 1],
+      scale: [0.5, 1],
+      duration: 500,
+      ease: 'outElastic(1, 0.6)',
+    })
+
+    // Greeting — fade up
+    animate(greeting, {
+      opacity: [0, 1],
+      translateY: [20, 0],
+      duration: 600,
+      ease: 'outExpo',
+      delay: 200,
+    })
+
+    // Cards — staggered entrance
+    animate(cards, {
+      opacity: [0, 1],
+      translateY: [30, 0],
+      scale: [0.95, 1],
+      duration: 500,
+      ease: 'outExpo',
+      delay: stagger(80, { start: 450 }),
+    })
+  }, [])
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">
-      <div className="w-16 h-16 rounded-2xl bg-[#161b22] border border-[#30363d] flex items-center justify-center">
-        <FlaskConical className="w-8 h-8 text-[#30363d]" />
-      </div>
-      <div>
-        <p className="text-[#8b949e] text-sm font-medium">Deep Research</p>
-        <p className="text-[#484f58] text-xs mt-1">Send a message to start a research conversation</p>
+    <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center gap-6 text-center p-8">
+      {/* Badge */}
+      <span data-anim="badge" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4A6CF7]/10 dark:bg-[#1f6feb]/15 text-xs font-semibold text-[#4A6CF7] dark:text-[#58a6ff]">
+        <FlaskConical className="w-3.5 h-3.5" />
+        DeepResearch
+      </span>
+
+      {/* Greeting */}
+      <h1 data-anim="greeting" className="text-2xl md:text-3xl font-bold text-[#1A1A2E] dark:text-[#e6edf3]">
+        Good day! How may I assist you today?
+      </h1>
+
+      {/* Capability cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-3xl w-full mt-2">
+        {CAPABILITIES.map(cap => (
+          <button
+            key={cap.title}
+            data-anim="card"
+            onClick={() => onCardClick(cap.description)}
+            className={`text-left p-4 rounded-xl border transition-all cursor-pointer ${
+              cap.dark
+                ? 'bg-[#1A1A2E] dark:bg-[#161b22] border-[#1A1A2E] dark:border-[#30363d] text-white hover:bg-[#2a2a3e] dark:hover:bg-[#21262d]'
+                : 'bg-white dark:bg-[#0d1117] border-[#E5E7EB] dark:border-[#30363d] hover:shadow-md dark:hover:border-[#388bfd]/30 hover:border-[#4A6CF7]/30'
+            }`}
+          >
+            <cap.icon className={`w-5 h-5 mb-2 ${
+              cap.dark ? 'text-white' : 'text-[#4A6CF7] dark:text-[#58a6ff]'
+            }`} />
+            <p className={`text-sm font-semibold mb-1 ${
+              cap.dark ? 'text-white' : 'text-[#1A1A2E] dark:text-[#e6edf3]'
+            }`}>
+              {cap.title}
+            </p>
+            <p className={`text-xs leading-relaxed ${
+              cap.dark ? 'text-gray-300' : 'text-[#6B7280] dark:text-[#8b949e]'
+            }`}>
+              {cap.description}
+            </p>
+          </button>
+        ))}
       </div>
     </div>
   )
 }
 
-export function ChatArea({ messages, error, onSendMessage, onStop, isRunning }: Props) {
+export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunning }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const isNearBottom = useRef(true)
 
@@ -241,11 +365,9 @@ export function ChatArea({ messages, error, onSendMessage, onStop, isRunning }: 
               if (msg.role === 'user') {
                 return <UserMessage key={msg.id} query={msg.data.query ?? ''} />
               }
-              // Skip __done__ without report
               if (!msg.agentName && msg.data?.node === '__done__' && !msg.data?.report) {
                 return null
               }
-              // Skip writer agent message (the __done__ message renders the report)
               if (msg.agentName === 'writer' && msg.status === 'done' && !msg.data?.report) {
                 return null
               }
@@ -254,19 +376,38 @@ export function ChatArea({ messages, error, onSendMessage, onStop, isRunning }: 
 
             {error && (
               <div className="flex gap-3 animate-message-enter">
-                <div className="w-8 h-8 rounded-full bg-[#3d1218] flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <FlaskConical className="w-4 h-4 text-[#f85149]" />
+                <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-[#3d1218] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <FlaskConical className="w-4 h-4 text-red-500 dark:text-[#f85149]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-[#f85149] font-medium">Research failed</p>
-                  <p className="text-xs text-[#8b949e] mt-1">{error}</p>
+                  <p className="text-sm text-red-500 dark:text-[#f85149] font-medium">Research failed</p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#8b949e] mt-1">{error}</p>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => {
+                        const userMsg = messages.find(m => m.role === 'user')
+                        if (userMsg?.data?.query) onSendMessage(userMsg.data.query)
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-[#4A6CF7] hover:bg-[#3B5DE7] text-white transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Try Again
+                    </button>
+                    <button
+                      onClick={onNew}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-[#E5E7EB] dark:border-[#30363d] text-[#374151] dark:text-[#c9d1d9] bg-white dark:bg-[#161b22] hover:bg-[#F5F5F5] dark:hover:bg-[#21262d] transition-colors"
+                    >
+                      <PlusCircle className="w-3 h-3" />
+                      New Research
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <EmptyState />
+        <EmptyState onCardClick={onSendMessage} />
       )}
 
       {/* Export buttons */}

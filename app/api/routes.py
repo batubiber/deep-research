@@ -225,7 +225,8 @@ async def run_research_stream(req: ResearchRequest):
     """Legacy streaming — starts a task and proxies its events."""
     task_id = uuid.uuid4().hex[:8]
     _tasks[task_id] = {"query": req.query, "events": [], "done": False, "asyncio_task": None}
-    _tasks[task_id]["asyncio_task"] = asyncio.create_task(_run_graph_task(task_id, req.query))
+    task = _tasks[task_id]
+    task["asyncio_task"] = asyncio.create_task(_run_graph_task(task_id, req.query))
 
     async def gen():
         idx = 0
@@ -237,5 +238,4 @@ async def run_research_stream(req: ResearchRequest):
                 break
             await asyncio.sleep(0.3)
 
-    task = _tasks[task_id]
     return StreamingResponse(gen(), media_type="text/event-stream")

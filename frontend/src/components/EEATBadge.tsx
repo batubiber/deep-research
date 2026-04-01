@@ -1,10 +1,9 @@
-// frontend/src/components/EEATBadge.tsx
 import type { EEATScore } from '../types'
 
 const CONFIG: Record<EEATScore, { label: string; className: string }> = {
-  high:   { label: 'high',   className: 'bg-[#1a4731] text-[#3fb950] border border-[#2ea043]/40' },
-  medium: { label: 'medium', className: 'bg-[#3d2e00] text-[#d29922] border border-[#d29922]/40' },
-  low:    { label: 'low',    className: 'bg-[#21262d] text-[#8b949e] border border-[#30363d]' },
+  high:   { label: 'high',   className: 'bg-green-50 text-green-700 border border-green-200 dark:bg-[#1a4731] dark:text-[#3fb950] dark:border-[#2ea043]/40' },
+  medium: { label: 'medium', className: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-[#3d2e00] dark:text-[#d29922] dark:border-[#d29922]/40' },
+  low:    { label: 'low',    className: 'bg-gray-100 text-gray-500 border border-gray-200 dark:bg-[#21262d] dark:text-[#8b949e] dark:border-[#30363d]' },
 }
 
 export function EEATBadge({ score }: { score: EEATScore }) {

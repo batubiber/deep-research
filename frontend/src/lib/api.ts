@@ -48,11 +48,16 @@ export interface SSEEvent {
 // ---------------------------------------------------------------------------
 
 export async function startTask(query: string): Promise<string> {
-  const res = await fetch(`${BASE}/research/start`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/research/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+  } catch {
+    throw new Error('Cannot connect to server. Is the backend running?')
+  }
   if (!res.ok) throw new Error(`Server error ${res.status}`)
   const data = await res.json()
   return data.task_id as string
@@ -70,7 +75,13 @@ export async function streamTaskEvents(
   onEvent: (event: SSEEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(`${BASE}/research/${taskId}/events`, { signal })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/research/${taskId}/events`, { signal })
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err
+    throw new Error('Lost connection to server')
+  }
   if (!res.ok) throw new Error(`Server error ${res.status}`)
   if (!res.body) throw new Error('No response body')
 
