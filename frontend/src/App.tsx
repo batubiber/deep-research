@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { ChatArea } from './components/ChatArea'
 import { useResearch } from './hooks/useResearch'
 
 export default function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const {
     researchState,
     messages,
@@ -24,6 +26,8 @@ export default function App() {
         onSelect={loadSession}
         onNew={newResearch}
         onDelete={deleteSession}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(prev => !prev)}
       />
       <ChatArea
         messages={messages}

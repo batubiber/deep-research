@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { animate, stagger } from 'animejs'
-import { PlusCircle, Search, Clock, Trash2, Settings, User, FlaskConical, AlertTriangle, X } from 'lucide-react'
+import { PlusCircle, Search, Clock, Trash2, Settings, User, FlaskConical, AlertTriangle, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import type { ResearchSession } from '../types'
 
@@ -10,6 +10,8 @@ interface Props {
   onSelect: (session: ResearchSession) => void
   onNew: () => void
   onDelete: (id: string) => void
+  isOpen: boolean
+  onToggle: () => void
 }
 
 function getTimeGroup(ts: number): string {
@@ -96,11 +98,9 @@ function DeleteModal({ query, onConfirm, onCancel }: { query: string; onConfirm:
   )
 }
 
-export function Sidebar({ history, activeId, onSelect, onNew, onDelete }: Props) {
+export function Sidebar({ history, activeId, onSelect, onNew, onDelete, isOpen, onToggle }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; query: string } | null>(null)
-  const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const searchInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const animatedOnce = useRef(false)
 
@@ -108,10 +108,6 @@ export function Sidebar({ history, activeId, onSelect, onNew, onDelete }: Props)
     ? history.filter(s => s.query.toLowerCase().includes(searchQuery.toLowerCase()))
     : history
   const grouped = groupByTime(filtered)
-
-  useEffect(() => {
-    if (searchOpen) searchInputRef.current?.focus()
-  }, [searchOpen])
 
   // Sidebar entrance animation (once)
   useLayoutEffect(() => {
@@ -147,61 +143,99 @@ export function Sidebar({ history, activeId, onSelect, onNew, onDelete }: Props)
 
   return (
     <>
-      <div ref={sidebarRef} className="w-64 flex-shrink-0 border-r border-[#E5E7EB] dark:border-[#30363d] bg-white dark:bg-[#0d1117] flex flex-col overflow-hidden">
+      <div
+        ref={sidebarRef}
+        className={`flex-shrink-0 border-r border-[#E5E7EB] dark:border-[#30363d] bg-white dark:bg-[#0d1117] flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? 'w-64' : 'w-14'
+        }`}
+      >
+        {/* Collapsed icon strip */}
+        {!isOpen && (
+          <div className="w-14 flex flex-col items-center flex-1 py-3 gap-1">
+            <div className="p-2.5 mb-1">
+              <FlaskConical className="w-5 h-5 text-[#4A6CF7]" />
+            </div>
+            <button
+              onClick={onToggle}
+              className="p-2.5 rounded-xl hover:bg-[#F0F4F8] dark:hover:bg-[#21262d] text-[#6B7280] dark:text-[#8b949e] transition-colors"
+              title="Open sidebar"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <button
+              onClick={onNew}
+              className="p-2.5 rounded-xl bg-[#4A6CF7] hover:bg-[#3B5DE7] text-white transition-colors shadow-sm"
+              title="New Research"
+            >
+              <PlusCircle className="w-5 h-5" />
+            </button>
+            <div className="flex-1" />
+
+            <div className="w-6 border-t border-[#E5E7EB] dark:border-[#30363d]" />
+
+            <button className="p-2.5 rounded-xl hover:bg-[#F0F4F8] dark:hover:bg-[#21262d] text-[#6B7280] dark:text-[#8b949e] transition-colors mt-1" title="Settings">
+              <Settings className="w-5 h-5" />
+            </button>
+            <ThemeToggle />
+            <div className="w-8 h-8 rounded-full bg-[#4A6CF7] flex items-center justify-center" title="Profile">
+              <User className="w-4 h-4 text-white" />
+            </div>
+          </div>
+        )}
+
+        {/* Full sidebar content */}
+        {isOpen && (
+        <div className="w-64 flex flex-col flex-1 overflow-hidden">
         {/* Branding */}
-        <div className="px-5 pt-5 pb-3">
-          <div data-anim="brand" className="flex items-center gap-2.5">
-            <FlaskConical className="w-6 h-6 text-[#4A6CF7]" />
-            <span className="text-base font-bold text-[#1A1A2E] dark:text-[#e6edf3] tracking-wide">
-              DeepResearch
-            </span>
+        <div className="px-4 pt-5 pb-3">
+          <div data-anim="brand" className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <FlaskConical className="w-6 h-6 text-[#4A6CF7]" />
+              <span className="text-base font-bold text-[#1A1A2E] dark:text-[#e6edf3] tracking-wide">
+                DeepResearch
+              </span>
+            </div>
+            <button
+              onClick={onToggle}
+              className="p-2.5 rounded-xl bg-[#4A6CF7] hover:bg-[#3B5DE7] text-white transition-colors"
+              title="Close sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* New Research + Search */}
-        <div data-anim="actions" className="px-4 pb-3 flex items-center gap-2">
+        {/* New Research */}
+        <div data-anim="actions" className="px-4 pb-3">
           <button
             onClick={onNew}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[#4A6CF7] hover:bg-[#3B5DE7] text-white text-sm font-medium transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-[#4A6CF7] hover:bg-[#3B5DE7] text-white text-sm font-medium transition-colors shadow-sm"
           >
             <PlusCircle className="w-4 h-4" />
             New Research
           </button>
-          <button
-            onClick={() => { setSearchOpen(prev => !prev); setSearchQuery('') }}
-            className={`p-2.5 rounded-xl transition-colors ${
-              searchOpen
-                ? 'bg-[#4A6CF7] text-white'
-                : 'bg-[#1A1A2E] dark:bg-[#21262d] text-white hover:bg-[#2a2a3e] dark:hover:bg-[#30363d]'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Search input */}
-        {searchOpen && (
-          <div className="px-4 pb-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3AF] dark:text-[#484f58]" />
-              <input
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
-                className={`w-full bg-[#F5F5F5] dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] rounded-xl pl-8 ${searchQuery ? 'pr-7' : 'pr-3'} py-2 text-xs text-[#1A1A2E] dark:text-[#e6edf3] placeholder-[#9CA3AF] dark:placeholder-[#484f58] focus:outline-none focus:border-[#4A6CF7] dark:focus:border-[#388bfd] transition-colors`}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#9CA3AF] hover:text-[#6B7280] dark:text-[#484f58] dark:hover:text-[#8b949e]"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+        <div className="px-4 pb-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3AF] dark:text-[#484f58]" />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className={`w-full bg-[#F5F5F5] dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] rounded-xl pl-8 ${searchQuery ? 'pr-7' : 'pr-3'} py-2 text-xs text-[#1A1A2E] dark:text-[#e6edf3] placeholder-[#9CA3AF] dark:placeholder-[#484f58] focus:outline-none focus:border-[#4A6CF7] dark:focus:border-[#388bfd] transition-colors`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#9CA3AF] hover:text-[#6B7280] dark:text-[#484f58] dark:hover:text-[#8b949e]"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Section header */}
         <div className="px-5 pt-2 pb-1 flex items-center justify-between">
@@ -279,6 +313,8 @@ export function Sidebar({ history, activeId, onSelect, onNew, onDelete }: Props)
             </div>
           </div>
         </div>
+        </div>
+        )}
       </div>
 
       {/* Delete confirmation modal */}
