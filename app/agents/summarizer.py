@@ -3,6 +3,10 @@ from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
 
+# Reserve ~15k tokens for system prompt + thinking budget + output + framing.
+# Remaining 241k tokens × 4 chars/token = 964k chars, minus 20% safety margin.
+_MAX_SUMMARIZER_SOURCE_CHARS = 770_000
+
 
 async def summarizer_node(state: ResearchState) -> dict:
     deduped = state.get("deduplicated_sources", [])
@@ -20,12 +24,14 @@ async def summarizer_node(state: ResearchState) -> dict:
     # Summarize each group via LLM
     summaries = []
     for sq_id, group in sorted(by_sq.items()):
+        # Distribute char budget evenly; never exceed per-source cap of 30k
+        chars_per_source = min(30_000, _MAX_SUMMARIZER_SOURCE_CHARS // max(len(group), 1))
         source_text = ""
         for s in group:
             source_text += f"\n### {s['title']} [{s['eet_score'].upper()}]\n"
             source_text += f"URL: {s['url']}\n"
             content = s.get("content", "")
-            source_text += f"Content: {content[:30_000]}\n"
+            source_text += f"Content: {content[:chars_per_source]}\n"
 
         sq_question = group[0].get("sub_question", f"Sub-question {sq_id}")
         user_msg = (
