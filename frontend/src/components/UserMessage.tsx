@@ -25,11 +25,11 @@ export function UserMessage({ query }: Props) {
   return (
     <div ref={ref} className="flex justify-end group">
       <div className="relative max-w-[80%]">
-        <div className="bg-[#F0F4F8] dark:bg-[#161b22] rounded-2xl px-4 py-3">
-          <p className="text-[#1A1A2E] dark:text-[#e6edf3] text-sm leading-relaxed whitespace-pre-wrap">{query}</p>
+        <div className="neu-raised-sm px-5 py-3.5 bg-[var(--neu-bg)]">
+          <p className="text-[var(--color-text-primary)] text-sm leading-relaxed whitespace-pre-wrap">{query}</p>
         </div>
         <button
-          className="absolute -top-1 -right-1 p-1 rounded-lg bg-white dark:bg-[#21262d] border border-[#E5E7EB] dark:border-[#30363d] opacity-0 group-hover:opacity-100 text-[#9CA3AF] hover:text-[#6B7280] dark:text-[#484f58] dark:hover:text-[#8b949e] transition-all shadow-sm dark:shadow-none"
+          className="absolute -top-1.5 -right-1.5 p-1.5 neu-btn opacity-0 group-hover:opacity-100 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)] transition-all"
           title="Edit"
         >
           <Pencil className="w-3 h-3" />

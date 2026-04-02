@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 import { animate, stagger } from 'animejs'
 import {
   FlaskConical, FileText, FileDown, RefreshCw, PlusCircle,
-  GraduationCap, BarChart3, Cpu, BookOpen, ShieldCheck, TrendingUp,
+  GraduationCap, BarChart3, Cpu, TrendingUp,
 } from 'lucide-react'
 import { UserMessage } from './UserMessage'
 import { AgentMessage } from './AgentMessage'
@@ -178,17 +178,17 @@ function ExportButtons({ messages }: { messages: ChatMessage[] }) {
   }
 
   return (
-    <div className="flex gap-2 px-4 pb-2 pt-1 border-t border-[#E5E7EB] dark:border-[#30363d]">
+    <div className="flex gap-2 px-4 pb-2 pt-1">
       <button
         onClick={handleDownloadMd}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-white dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] text-[#374151] dark:text-[#c9d1d9] hover:bg-[#F5F5F5] dark:hover:bg-[#21262d] hover:border-[#9CA3AF] dark:hover:border-[#8b949e] transition-colors shadow-sm dark:shadow-none"
+        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium neu-btn text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
       >
         <FileText className="w-3.5 h-3.5" />
         Export MD
       </button>
       <button
         onClick={handleDownloadPdf}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-white dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] text-[#374151] dark:text-[#c9d1d9] hover:bg-[#F5F5F5] dark:hover:bg-[#21262d] hover:border-[#9CA3AF] dark:hover:border-[#8b949e] transition-colors shadow-sm dark:shadow-none"
+        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium neu-btn text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
       >
         <FileDown className="w-3.5 h-3.5" />
         Export PDF
@@ -204,41 +204,33 @@ const CAPABILITIES = [
     icon: GraduationCap,
     title: 'Academic Research',
     description: 'Find peer-reviewed papers on quantum computing advances',
-    dark: false,
+    gradient: 'from-blue-500/20 to-purple-500/20',
+    iconColor: 'text-blue-500',
   },
   {
     icon: BarChart3,
     title: 'Market Analysis',
     description: 'Analyze the competitive landscape of EV battery manufacturers',
-    dark: false,
+    gradient: 'from-emerald-500/20 to-teal-500/20',
+    iconColor: 'text-emerald-500',
   },
   {
     icon: Cpu,
     title: 'Technical Deep Dive',
     description: 'How does transformer architecture handle long-context inference?',
-    dark: true,
-  },
-  {
-    icon: BookOpen,
-    title: 'Literature Review',
-    description: 'Summarize recent findings on CRISPR gene therapy safety',
-    dark: false,
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Fact Checking',
-    description: 'Verify claims about renewable energy cost trends',
-    dark: false,
+    gradient: 'from-violet-500/20 to-indigo-500/20',
+    iconColor: 'text-violet-500',
   },
   {
     icon: TrendingUp,
     title: 'Trend Analysis',
     description: 'What are the emerging trends in edge AI deployment?',
-    dark: true,
+    gradient: 'from-cyan-500/20 to-sky-500/20',
+    iconColor: 'text-cyan-500',
   },
 ]
 
-function EmptyState({ onCardClick }: { onCardClick: (query: string) => void }) {
+function EmptyState({ onCardClick, onSend, onStop, isRunning }: { onCardClick: (query: string) => void; onSend: (query: string) => void; onStop: () => void; isRunning: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
@@ -247,18 +239,18 @@ function EmptyState({ onCardClick }: { onCardClick: (query: string) => void }) {
 
     const badge = el.querySelector('[data-anim="badge"]') as HTMLElement
     const greeting = el.querySelector('[data-anim="greeting"]') as HTMLElement
+    const subtitle = el.querySelector('[data-anim="subtitle"]') as HTMLElement
     const cards = el.querySelectorAll('[data-anim="card"]')
 
-    // Set initial hidden state synchronously to prevent flash
     if (badge) { badge.style.opacity = '0'; badge.style.transform = 'scale(0.5)' }
     if (greeting) { greeting.style.opacity = '0'; greeting.style.transform = 'translateY(20px)' }
+    if (subtitle) { subtitle.style.opacity = '0'; subtitle.style.transform = 'translateY(12px)' }
     cards.forEach(c => {
       const card = c as HTMLElement
       card.style.opacity = '0'
       card.style.transform = 'translateY(30px) scale(0.95)'
     })
 
-    // Badge — elastic scale-in
     animate(badge, {
       opacity: [0, 1],
       scale: [0.5, 1],
@@ -266,7 +258,6 @@ function EmptyState({ onCardClick }: { onCardClick: (query: string) => void }) {
       ease: 'outElastic(1, 0.6)',
     })
 
-    // Greeting — fade up
     animate(greeting, {
       opacity: [0, 1],
       translateY: [20, 0],
@@ -275,58 +266,78 @@ function EmptyState({ onCardClick }: { onCardClick: (query: string) => void }) {
       delay: 200,
     })
 
-    // Cards — staggered entrance
+    animate(subtitle, {
+      opacity: [0, 1],
+      translateY: [12, 0],
+      duration: 500,
+      ease: 'outExpo',
+      delay: 350,
+    })
+
     animate(cards, {
       opacity: [0, 1],
       translateY: [30, 0],
       scale: [0.95, 1],
       duration: 500,
       ease: 'outExpo',
-      delay: stagger(80, { start: 450 }),
+      delay: stagger(80, { start: 500 }),
     })
   }, [])
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center gap-6 text-center p-8">
-      {/* Badge */}
-      <span data-anim="badge" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4A6CF7]/10 dark:bg-[#1f6feb]/15 text-xs font-semibold text-[#4A6CF7] dark:text-[#58a6ff]">
-        <FlaskConical className="w-3.5 h-3.5" />
-        DeepResearch
-      </span>
+    <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center gap-6 text-center p-8 relative overflow-hidden">
+      {/* Aurora background */}
+      <div className="aurora-bg">
+        <div className="wave wave-1" />
+        <div className="wave wave-2" />
+        <div className="wave wave-3" />
+        <div className="wave wave-4" />
+      </div>
 
-      {/* Greeting */}
-      <h1 data-anim="greeting" className="text-2xl md:text-3xl font-bold text-[#1A1A2E] dark:text-[#e6edf3]">
-        Good day! How may I assist you today?
-      </h1>
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center gap-5">
+        {/* Badge */}
+        <span data-anim="badge" className="inline-flex items-center gap-2 px-4 py-2 glass-sm text-xs font-semibold text-[var(--color-primary)]">
+          <FlaskConical className="w-3.5 h-3.5" />
+          DeepResearch
+        </span>
 
-      {/* Capability cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-3xl w-full mt-2">
-        {CAPABILITIES.map(cap => (
-          <button
-            key={cap.title}
-            data-anim="card"
-            onClick={() => onCardClick(cap.description)}
-            className={`text-left p-4 rounded-xl border transition-all cursor-pointer ${
-              cap.dark
-                ? 'bg-[#1A1A2E] dark:bg-[#161b22] border-[#1A1A2E] dark:border-[#30363d] text-white hover:bg-[#2a2a3e] dark:hover:bg-[#21262d]'
-                : 'bg-white dark:bg-[#0d1117] border-[#E5E7EB] dark:border-[#30363d] hover:shadow-md dark:hover:border-[#388bfd]/30 hover:border-[#4A6CF7]/30'
-            }`}
-          >
-            <cap.icon className={`w-5 h-5 mb-2 ${
-              cap.dark ? 'text-white' : 'text-[#4A6CF7] dark:text-[#58a6ff]'
-            }`} />
-            <p className={`text-sm font-semibold mb-1 ${
-              cap.dark ? 'text-white' : 'text-[#1A1A2E] dark:text-[#e6edf3]'
-            }`}>
-              {cap.title}
-            </p>
-            <p className={`text-xs leading-relaxed ${
-              cap.dark ? 'text-gray-300' : 'text-[#6B7280] dark:text-[#8b949e]'
-            }`}>
-              {cap.description}
-            </p>
-          </button>
-        ))}
+        {/* Greeting */}
+        <h1 data-anim="greeting" className="text-3xl md:text-4xl font-bold gradient-text">
+          What shall we research?
+        </h1>
+
+        {/* Subtitle */}
+        <p data-anim="subtitle" className="text-sm text-[var(--color-text-secondary)] max-w-md">
+          AI-powered deep research with parallel agents, source verification, and comprehensive reports.
+        </p>
+
+        {/* Capability cards — glassmorphic */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl w-full mt-3">
+          {CAPABILITIES.map(cap => (
+            <button
+              key={cap.title}
+              data-anim="card"
+              onClick={() => onCardClick(cap.description)}
+              className="group text-left p-4 glass hover:shadow-[0_8px_32px_var(--color-primary-glow)] transition-all duration-300 cursor-pointer hover:-translate-y-0.5"
+            >
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${cap.gradient} flex items-center justify-center mb-3`}>
+                <cap.icon className={`w-4.5 h-4.5 ${cap.iconColor}`} />
+              </div>
+              <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 group-hover:text-[var(--color-primary)] transition-colors">
+                {cap.title}
+              </p>
+              <p className="text-xs leading-relaxed text-[var(--color-text-tertiary)]">
+                {cap.description}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        {/* Centered input in empty state */}
+        <div className="w-full max-w-3xl mt-4">
+          <ChatInput onSend={onSend} onStop={onStop} isRunning={isRunning} />
+        </div>
       </div>
     </div>
   )
@@ -376,26 +387,26 @@ export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunn
 
             {error && (
               <div className="flex gap-3 animate-message-enter">
-                <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-[#3d1218] flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <FlaskConical className="w-4 h-4 text-red-500 dark:text-[#f85149]" />
+                <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                  <FlaskConical className="w-4 h-4 text-red-500" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-red-500 dark:text-[#f85149] font-medium">Research failed</p>
-                  <p className="text-xs text-[#6B7280] dark:text-[#8b949e] mt-1">{error}</p>
+                  <p className="text-sm text-red-500 font-medium">Research failed</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">{error}</p>
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => {
                         const userMsg = messages.find(m => m.role === 'user')
                         if (userMsg?.data?.query) onSendMessage(userMsg.data.query)
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-[#4A6CF7] hover:bg-[#3B5DE7] text-white transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium btn-primary-glow"
                     >
                       <RefreshCw className="w-3 h-3" />
                       Try Again
                     </button>
                     <button
                       onClick={onNew}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-[#E5E7EB] dark:border-[#30363d] text-[#374151] dark:text-[#c9d1d9] bg-white dark:bg-[#161b22] hover:bg-[#F5F5F5] dark:hover:bg-[#21262d] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium neu-btn text-[var(--color-text-secondary)]"
                     >
                       <PlusCircle className="w-3 h-3" />
                       New Research
@@ -407,14 +418,16 @@ export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunn
           </div>
         </div>
       ) : (
-        <EmptyState onCardClick={onSendMessage} />
+        <EmptyState onCardClick={onSendMessage} onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
       )}
 
-      {/* Export buttons */}
-      <ExportButtons messages={messages} />
-
-      {/* Input */}
-      <ChatInput onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
+      {/* Export buttons + bottom input only when conversation is active */}
+      {hasMessages && (
+        <>
+          <ExportButtons messages={messages} />
+          <ChatInput onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
+        </>
+      )}
     </div>
   )
 }

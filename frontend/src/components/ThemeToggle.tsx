@@ -23,7 +23,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={handleClick}
-      className="p-2 rounded-xl hover:bg-[#F0F4F8] dark:hover:bg-[#21262d] text-[#6B7280] dark:text-[#8b949e] transition-colors"
+      className="neu-btn p-2.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)]"
       aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
       <span ref={iconRef} className="block">

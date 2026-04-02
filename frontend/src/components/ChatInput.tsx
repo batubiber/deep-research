@@ -34,36 +34,40 @@ export function ChatInput({ onSend, onStop, isRunning }: Props) {
   }
 
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 py-4">
       <form
         onSubmit={handleSubmit}
-        className="max-w-3xl mx-auto flex items-center gap-2 bg-white dark:bg-[#161b22] border border-[#E5E7EB] dark:border-[#30363d] rounded-2xl px-3 py-1.5 shadow-sm dark:shadow-none transition-colors"
+        className="max-w-3xl mx-auto flex items-center gap-3"
       >
-        <textarea
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="What's in your mind?..."
-          disabled={isRunning}
-          rows={1}
-          className="flex-1 bg-transparent border-none px-2 py-2 text-sm text-[#1A1A2E] dark:text-[#e6edf3] placeholder-[#9CA3AF] dark:placeholder-[#484f58] resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-        />
+        {/* Neumorphic inset input — 50px height */}
+        <div className="flex-1 neu-pressed-deep px-5 h-[50px] flex items-center bg-[var(--neu-bg)]">
+          <textarea
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="What would you like to research?..."
+            disabled={isRunning}
+            rows={1}
+            className="w-full bg-transparent border-none text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed leading-normal"
+          />
+        </div>
 
+        {/* Neumorphic send/stop button — 50x50 square */}
         {isRunning ? (
           <button
             type="button"
             onClick={onStop}
-            className="flex items-center justify-center w-9 h-9 bg-red-500 hover:bg-red-600 dark:bg-[#da3633] dark:hover:bg-[#f85149] text-white rounded-full transition-colors flex-shrink-0"
+            className="neu-btn flex items-center justify-center w-[50px] h-[50px] text-red-500 hover:text-red-400 transition-colors flex-shrink-0"
           >
-            <Square className="w-4 h-4" />
+            <Square className="w-5 h-5" />
           </button>
         ) : (
           <button
             type="submit"
             disabled={!value.trim()}
-            className="flex items-center justify-center w-9 h-9 bg-[#4A6CF7] hover:bg-[#3B5DE7] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-full transition-colors flex-shrink-0"
+            className="btn-primary-glow flex items-center justify-center w-[50px] h-[50px] disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none flex-shrink-0"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-5 h-5" />
           </button>
         )}
       </form>

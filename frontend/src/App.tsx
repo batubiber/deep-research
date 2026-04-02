@@ -19,7 +19,7 @@ export default function App() {
   } = useResearch()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F5F5] dark:bg-[#0d1117]">
+    <div className="flex h-screen overflow-hidden bg-[var(--neu-bg)] antialiased">
       <Sidebar
         history={history}
         activeId={activeSession?.id}
