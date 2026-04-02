@@ -1,10 +1,14 @@
 import json
+import logging
 import re
+import time
 
 from app.agents.prompts import PLANNER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+
+logger = logging.getLogger(__name__)
 
 
 TOOL_MAP = {
@@ -123,6 +127,9 @@ def _normalize_planner_json(data: dict) -> dict:
 
 
 async def planner_node(state: ResearchState) -> dict:
+    logger.info("Planner started (query=%r)", state["query"][:120])
+    t0 = time.perf_counter()
+
     messages = [
         {"role": "system", "content": PLANNER_PROMPT},
         {"role": "user", "content": state["query"]},
@@ -135,6 +142,12 @@ async def planner_node(state: ResearchState) -> dict:
     )
     cleaned = strip_thinking(response)
     parsed = _parse_planner_output(cleaned)
+
+    elapsed = time.perf_counter() - t0
+    logger.info(
+        "Planner done in %.1fs — complexity=%s, sub_questions=%d",
+        elapsed, parsed["complexity"], len(parsed["sub_questions"]),
+    )
 
     return {
         "complexity": parsed["complexity"],

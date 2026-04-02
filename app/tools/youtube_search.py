@@ -2,11 +2,13 @@ import asyncio
 import logging
 
 from app.tools.models import SearchResult
+from app.tools.retry import search_retry
 from app.tools.youtube_transcript import youtube_transcript
 
 logger = logging.getLogger(__name__)
 
 
+@search_retry
 async def youtube_search(query: str, max_results: int = 3) -> list[SearchResult]:
     import yt_dlp
 

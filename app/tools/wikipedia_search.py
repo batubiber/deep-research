@@ -3,8 +3,10 @@ import asyncio
 import wikipedia
 
 from app.tools.models import SearchResult
+from app.tools.retry import search_retry
 
 
+@search_retry
 async def wikipedia_search(query: str, max_results: int = 2) -> list[SearchResult]:
     results = []
     titles = await asyncio.to_thread(wikipedia.search, query, results=max_results)

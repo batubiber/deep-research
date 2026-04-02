@@ -1,19 +1,24 @@
+import logging
 import re
+import time
 
 from app.agents.prompts import CITATION_VERIFIER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
 
+logger = logging.getLogger(__name__)
+
 
 def _extract_urls_from_report(report: str) -> set[str]:
     """Extract all URLs mentioned in the report."""
     raw = re.findall(r'https?://[^\s\)>\]"]+', report)
     # Strip trailing punctuation that isn't part of URLs
-    return {url.rstrip(".,;:!?") for url in raw}
+    return {re.sub(r'[.,;:!]+$', '', url) for url in raw}
 
 
 async def citation_verifier_node(state: ResearchState) -> dict:
+    t0 = time.perf_counter()
     report = state.get("final_report", "")
     deduped = state.get("deduplicated_sources", [])
 
@@ -29,6 +34,8 @@ async def citation_verifier_node(state: ResearchState) -> dict:
     # Find unverified URLs
     unverified = report_urls - verified_urls
     if not unverified:
+        elapsed = time.perf_counter() - t0
+        logger.info("Citation verifier: all %d URLs verified (%.1fs)", len(report_urls), elapsed)
         return {"final_report": report, "citation_verification": "All citations verified."}
 
     # Ask LLM to fix the report — remove or replace unverified citations
@@ -59,6 +66,11 @@ async def citation_verifier_node(state: ResearchState) -> dict:
     )
     cleaned = strip_thinking(response)
 
+    elapsed = time.perf_counter() - t0
+    logger.info(
+        "Citation verifier done in %.1fs — %d unverified of %d total URLs",
+        elapsed, len(unverified), len(report_urls),
+    )
     return {
         "final_report": cleaned,
         "citation_verification": f"Fixed {len(unverified)} unverified citation(s).",

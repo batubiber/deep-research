@@ -1,7 +1,12 @@
+import logging
+import time
+
 from app.agents.prompts import SUMMARIZER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+
+logger = logging.getLogger(__name__)
 
 # Reserve ~15k tokens for system prompt + thinking budget + output + framing.
 # Remaining 241k tokens × 4 chars/token = 964k chars, minus 20% safety margin.
@@ -9,6 +14,7 @@ _MAX_SUMMARIZER_SOURCE_CHARS = 770_000
 
 
 async def summarizer_node(state: ResearchState) -> dict:
+    t0 = time.perf_counter()
     deduped = state.get("deduplicated_sources", [])
 
     # Separate actual sources from researcher analyses
@@ -51,7 +57,8 @@ async def summarizer_node(state: ResearchState) -> dict:
             thinking_budget=settings.thinking_budget_summarizer,
             temperature=settings.temperature_summarizer,
         )
-        summaries.append(strip_thinking(response))
+        header = f"## Sub-Question {sq_id}: {sq_question}"
+        summaries.append(f"{header}\n\n{strip_thinking(response)}")
 
     # Include researcher analyses as-is
     researcher_analyses = "\n\n".join(
@@ -62,4 +69,9 @@ async def summarizer_node(state: ResearchState) -> dict:
     if researcher_analyses:
         summarized += f"\n\n---\n\nResearcher Analyses:\n{researcher_analyses}"
 
+    elapsed = time.perf_counter() - t0
+    logger.info(
+        "Summarizer done in %.1fs — %d groups, output=%d chars",
+        elapsed, len(by_sq), len(summarized),
+    )
     return {"summarized_sources": summarized}

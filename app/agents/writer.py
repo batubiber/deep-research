@@ -1,10 +1,16 @@
+import logging
+import time
+
 from app.agents.prompts import WRITER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
 
+logger = logging.getLogger(__name__)
+
 
 async def writer_node(state: ResearchState) -> dict:
+    t0 = time.perf_counter()
     review = state.get("review", {})
 
     # Build a verified source list from deduplicated sources (only citable entries with real URLs)
@@ -57,4 +63,6 @@ async def writer_node(state: ResearchState) -> dict:
     )
     cleaned = strip_thinking(response)
 
+    elapsed = time.perf_counter() - t0
+    logger.info("Writer done in %.1fs — %d citable sources, report=%d chars", elapsed, len(citable), len(cleaned))
     return {"final_report": cleaned}

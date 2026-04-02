@@ -416,7 +416,7 @@ def test_semantic_chunk_returns_within_budget():
 
 
 def test_semantic_chunk_prioritises_relevant_paragraphs():
-    irrelevant = "\n\n".join([f"Unrelated content about cooking and gardening {i}." * 10 for i in range(50)])
+    irrelevant = "\n\n".join([f"Unrelated content about cooking and gardening {i}. " * 30 for i in range(50)])
     relevant = "DeepSeek-R1 uses Group Relative Policy Optimization GRPO for reinforcement learning training."
     content = irrelevant + "\n\n" + relevant
     assert len(content) > _MAX_CHARS_PER_SOURCE

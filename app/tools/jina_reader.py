@@ -4,6 +4,7 @@ import httpx
 
 from app.config import settings
 from app.tools.models import SearchResult, get_eet_score
+from app.tools.retry import search_retry
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ def _jina_headers() -> dict:
     return headers
 
 
+@search_retry
 async def jina_read_url(url: str) -> SearchResult:
     """Read a single URL and return its full content as markdown."""
     async with httpx.AsyncClient(timeout=30) as client:
@@ -35,6 +37,7 @@ async def jina_read_url(url: str) -> SearchResult:
     )
 
 
+@search_retry
 async def jina_search(query: str, max_results: int = 3) -> list[SearchResult]:
     """Search via Jina Reader's search endpoint."""
     async with httpx.AsyncClient(timeout=30) as client:

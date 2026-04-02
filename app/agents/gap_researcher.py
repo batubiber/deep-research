@@ -1,3 +1,6 @@
+import logging
+import time
+
 from app.agents.prompts import GAP_RESEARCHER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
@@ -6,6 +9,8 @@ from app.tools.arxiv_search import arxiv_search
 from app.tools.reddit_search import reddit_search
 from app.tools.twitter_search import twitter_search
 from app.tools.web_search import web_search
+
+logger = logging.getLogger(__name__)
 
 _ACADEMIC_KEYWORDS = (
     "arxiv", "paper", "technical report", "research paper",
@@ -25,6 +30,7 @@ def _select_gap_tool(gap_query: str):
 
 
 async def gap_researcher_node(state: ResearchState) -> dict:
+    t0 = time.perf_counter()
     review = state.get("review", {})
     gaps = review.get("gaps", [])[:3]
 
@@ -46,9 +52,10 @@ async def gap_researcher_node(state: ResearchState) -> dict:
                     "eet_score": r.eet_score,
                     "gap_query": gap_query,
                 })
-        except Exception:
+        except Exception as e:
+            logger.error("Gap search failed (tool=%s, query=%r): %s", search_fn.__name__, gap_query, e)
             gap_results.append({
-                "title": "No results found",
+                "title": "Search failed",
                 "url": "",
                 "content": "",
                 "eet_score": "low",
@@ -85,6 +92,8 @@ async def gap_researcher_node(state: ResearchState) -> dict:
     )
     cleaned = strip_thinking(response)
 
+    elapsed = time.perf_counter() - t0
+    logger.info("Gap researcher done in %.1fs — gaps=%d, sources=%d", elapsed, len(gaps), len(gap_results))
     return {
         "gap_findings": cleaned,
         "raw_sources": gap_results,

@@ -4,10 +4,12 @@ from tavily import AsyncTavilyClient
 
 from app.config import settings
 from app.tools.models import SearchResult
+from app.tools.retry import search_retry
 
 logger = logging.getLogger(__name__)
 
 
+@search_retry
 async def twitter_search(query: str, max_results: int = 5) -> list[SearchResult]:
     """Search Twitter/X content via Tavily with domain filtering."""
     client = AsyncTavilyClient(api_key=settings.tavily_api_key)

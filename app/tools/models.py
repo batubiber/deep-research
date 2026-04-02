@@ -96,16 +96,16 @@ def _structure_score(content: str) -> float:
 
 
 def get_eet_score(url: str, content: str = "", title: str = "") -> str:
-    """Multi-signal credibility assessment.
+    """Weighted multi-signal credibility assessment.
 
-    Five signals (max 10 points total):
-      1. Domain type          0–2  (institutional, academic, docs)
-      2. Content depth        0–3  (word count)
-      3. Technical specificity 0–2  (numbers, data points)
-      4. Reference density    0–2  (citations, DOIs, links)
-      5. Structural quality   0–1  (headers, tables, formatting)
+    Five signals, each normalised to 0–1 then weighted:
+      1. Domain authority       40%  (institutional, academic, docs)
+      2. Content depth          25%  (word count)
+      3. Technical specificity  12%  (numbers, data points)
+      4. Reference density      13%  (citations, DOIs, links)
+      5. Structural quality     10%  (headers, tables, formatting)
 
-    Thresholds: ≥ 6 → high, ≥ 3 → medium, else low.
+    Weighted total ranges 0–1.  Thresholds: ≥ 0.50 → high, ≥ 0.25 → medium, else low.
 
     When *content* is empty the function degrades gracefully to a
     URL-only heuristic (weaker but backward-compatible).
@@ -120,16 +120,17 @@ def get_eet_score(url: str, content: str = "", title: str = "") -> str:
             return "medium"
         return "low"
 
-    total = (
-        domain
-        + _content_depth_score(content)
-        + _specificity_score(content)
-        + _reference_score(content)
-        + _structure_score(content)
-    )
+    # Normalise each signal to 0–1, then apply weights
+    w_domain = (domain / 2.0) * 0.40
+    w_depth = (_content_depth_score(content) / 3.0) * 0.25
+    w_specificity = (_specificity_score(content) / 2.0) * 0.12
+    w_references = (_reference_score(content) / 2.0) * 0.13
+    w_structure = _structure_score(content) * 0.10
 
-    if total >= 6.0:
+    total = w_domain + w_depth + w_specificity + w_references + w_structure
+
+    if total >= 0.50:
         return "high"
-    if total >= 3.0:
+    if total >= 0.25:
         return "medium"
     return "low"

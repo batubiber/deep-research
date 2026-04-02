@@ -4,6 +4,7 @@ from tavily import AsyncTavilyClient
 
 from app.config import settings
 from app.tools.models import SearchResult, get_eet_score
+from app.tools.retry import search_retry
 
 
 async def _enrich_content(url: str, fallback: str) -> str:
@@ -17,6 +18,7 @@ async def _enrich_content(url: str, fallback: str) -> str:
         return fallback
 
 
+@search_retry
 async def web_search(query: str, max_results: int = 3) -> list[SearchResult]:
     client = AsyncTavilyClient(api_key=settings.tavily_api_key)
     response = await client.search(query, max_results=max_results)

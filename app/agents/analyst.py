@@ -1,13 +1,19 @@
+import logging
+import time
+
 from app.agents.prompts import ANALYST_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+
+logger = logging.getLogger(__name__)
 
 
 async def analyst_node(state: ResearchState) -> dict:
     # Prefer summarized sources (from summarizer node) over raw sources
     summarized = state.get("summarized_sources", "")
 
+    t0 = time.perf_counter()
     if summarized:
         sources_text = summarized
     else:
@@ -43,4 +49,6 @@ async def analyst_node(state: ResearchState) -> dict:
     )
     cleaned = strip_thinking(response)
 
+    elapsed = time.perf_counter() - t0
+    logger.info("Analyst done in %.1fs — input=%d chars, output=%d chars", elapsed, len(sources_text), len(cleaned))
     return {"analysis": cleaned}

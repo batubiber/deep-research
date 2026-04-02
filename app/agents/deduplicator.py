@@ -1,4 +1,8 @@
+import logging
+
 from app.agents.state import ResearchState
+
+logger = logging.getLogger(__name__)
 
 
 def deduplicate_sources(sources: list[dict]) -> list[dict]:
@@ -22,4 +26,7 @@ def deduplicate_sources(sources: list[dict]) -> list[dict]:
 
 
 async def deduplicator_node(state: ResearchState) -> dict:
-    return {"deduplicated_sources": deduplicate_sources(state.get("raw_sources", []))}
+    raw = state.get("raw_sources", [])
+    deduped = deduplicate_sources(raw)
+    logger.info("Deduplicator: %d raw → %d deduplicated sources", len(raw), len(deduped))
+    return {"deduplicated_sources": deduped}

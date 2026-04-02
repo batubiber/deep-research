@@ -1,10 +1,14 @@
 import json
+import logging
 import re
+import time
 
 from app.agents.prompts import REVIEWER_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_review_regex(text: str) -> dict:
@@ -80,6 +84,7 @@ def _parse_review(text: str) -> dict:
 
 
 async def reviewer_node(state: ResearchState) -> dict:
+    t0 = time.perf_counter()
     user_msg = (
         f"Main question: {state.get('main_question', state['query'])}\n\n"
         f"Analysis:\n{state.get('analysis', '')}\n\n"
@@ -99,4 +104,6 @@ async def reviewer_node(state: ResearchState) -> dict:
     cleaned = strip_thinking(response)
     review = _parse_review(cleaned)
 
+    elapsed = time.perf_counter() - t0
+    logger.info("Reviewer done in %.1fs — score=%d, gaps=%d", elapsed, review["score"], len(review["gaps"]))
     return {"review": review}

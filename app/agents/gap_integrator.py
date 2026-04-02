@@ -1,15 +1,23 @@
+import logging
+import time
+
 from app.agents.prompts import GAP_INTEGRATOR_PROMPT
 from app.agents.state import ResearchState
 from app.config import settings
 from app.llm.client import chat, strip_thinking
+
+logger = logging.getLogger(__name__)
 
 
 async def gap_integrator_node(state: ResearchState) -> dict:
     gap_findings = state.get("gap_findings", "")
     analysis = state.get("analysis", "")
 
+    t0 = time.perf_counter()
+
     # Skip if no meaningful gap findings
     if not gap_findings or gap_findings.startswith("No gaps"):
+        logger.info("Gap integrator: no gaps to integrate, passing analysis through")
         return {"enhanced_analysis": analysis}
 
     user_msg = (
@@ -32,4 +40,6 @@ async def gap_integrator_node(state: ResearchState) -> dict:
     )
     cleaned = strip_thinking(response)
 
+    elapsed = time.perf_counter() - t0
+    logger.info("Gap integrator done in %.1fs — output=%d chars", elapsed, len(cleaned))
     return {"enhanced_analysis": cleaned}

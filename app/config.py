@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     temperature_analyst: float = 0.2
     temperature_reviewer: float = 0.1
     temperature_gap_researcher: float = 0.1
-    temperature_writer: float = 0.4
+    temperature_writer: float = 0.2
     temperature_summarizer: float = 0.1
 
     # Researcher iteration

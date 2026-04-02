@@ -1,3 +1,6 @@
+import logging
+from collections.abc import Callable
+
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
@@ -13,6 +16,30 @@ from app.agents.state import ResearchState
 from app.agents.summarizer import summarizer_node
 from app.agents.writer import writer_node
 
+logger = logging.getLogger(__name__)
+
+
+def _safe_node(name: str, fn: Callable, *, fatal: bool = False) -> Callable:
+    """Wrap an agent node so exceptions are caught and recorded in state.
+
+    Non-fatal nodes log the error and return an empty update so the pipeline
+    continues with partial results.  Fatal nodes (planner) re-raise.
+    """
+
+    async def wrapper(state):
+        try:
+            return await fn(state)
+        except Exception as e:
+            logger.error("Node '%s' failed: %s", name, e, exc_info=True)
+            if fatal:
+                raise
+            prev = state.get("error") or ""
+            msg = f"{prev}[{name}] {e}\n" if prev else f"[{name}] {e}\n"
+            return {"error": msg}
+
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
 
 def route_to_researchers(state: ResearchState) -> list[Send]:
     return [
@@ -26,16 +53,19 @@ def route_to_researchers(state: ResearchState) -> list[Send]:
 
 builder = StateGraph(ResearchState)
 
-builder.add_node("planner", planner_node)
-builder.add_node("research_assistant", researcher_node)
-builder.add_node("deduplicator", deduplicator_node)
-builder.add_node("summarizer", summarizer_node)
-builder.add_node("analyst", analyst_node)
-builder.add_node("reviewer", reviewer_node)
-builder.add_node("gap_researcher", gap_researcher_node)
-builder.add_node("gap_integrator", gap_integrator_node)
-builder.add_node("writer", writer_node)
-builder.add_node("citation_verifier", citation_verifier_node)
+# Planner is fatal — without sub-questions the pipeline can't continue
+builder.add_node("planner", _safe_node("planner", planner_node, fatal=True))
+# Researcher has its own internal error handling; wrap for safety
+builder.add_node("research_assistant", _safe_node("research_assistant", researcher_node))
+# All post-research nodes are non-fatal — partial results are better than nothing
+builder.add_node("deduplicator", _safe_node("deduplicator", deduplicator_node))
+builder.add_node("summarizer", _safe_node("summarizer", summarizer_node))
+builder.add_node("analyst", _safe_node("analyst", analyst_node))
+builder.add_node("reviewer", _safe_node("reviewer", reviewer_node))
+builder.add_node("gap_researcher", _safe_node("gap_researcher", gap_researcher_node))
+builder.add_node("gap_integrator", _safe_node("gap_integrator", gap_integrator_node))
+builder.add_node("writer", _safe_node("writer", writer_node))
+builder.add_node("citation_verifier", _safe_node("citation_verifier", citation_verifier_node))
 
 builder.set_entry_point("planner")
 builder.add_conditional_edges("planner", route_to_researchers)

@@ -5,6 +5,7 @@ import re
 import arxiv
 
 from app.tools.models import SearchResult, get_eet_score
+from app.tools.retry import search_retry
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ async def _fetch_paper_html(entry_id: str, fallback: str) -> str:
         return fallback
 
 
+@search_retry
 async def arxiv_search(query: str, max_results: int = 5) -> list[SearchResult]:
     from app.config import settings
 

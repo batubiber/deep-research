@@ -4,7 +4,7 @@ import logging
 import time
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.agents.graph import graph
@@ -172,18 +172,32 @@ async def task_status(task_id: str):
 
 
 @router.get("/research/{task_id}/events")
-async def stream_task_events(task_id: str):
-    """SSE stream that replays all past events then follows live ones."""
+async def stream_task_events(
+    task_id: str,
+    request: Request,
+    last_event_id: int = Query(0, ge=0),
+):
+    """SSE stream that replays events from *last_event_id* then follows live ones.
+
+    Clients can reconnect with ``?last_event_id=N`` to skip already-received
+    events instead of replaying the full history.  Each SSE frame includes an
+    ``id:`` field so browsers using ``EventSource`` send it back automatically
+    via the ``Last-Event-ID`` header.
+    """
     task = _tasks.get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
 
+    # Standard SSE: browsers send Last-Event-ID header on reconnect
+    header_id = request.headers.get("Last-Event-ID")
+    start_idx = int(header_id) if header_id and header_id.isdigit() else last_event_id
+
     async def gen():
-        idx = 0
+        idx = start_idx
         while True:
             # Drain all queued events
             while idx < len(task["events"]):
-                yield f"data: {json.dumps(task['events'][idx])}\n\n"
+                yield f"id: {idx}\ndata: {json.dumps(task['events'][idx])}\n\n"
                 idx += 1
             if task["done"]:
                 break
