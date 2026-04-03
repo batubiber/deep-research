@@ -10,22 +10,13 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('deep-research-theme')
-    return stored === 'dark' ? 'dark' : 'light'
-  })
+  const [theme] = useState<Theme>('dark')
 
   useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    localStorage.setItem('deep-research-theme', theme)
-  }, [theme])
+    document.documentElement.classList.add('dark')
+  }, [])
 
-  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+  const toggleTheme = () => {} // Dark-only, no-op
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

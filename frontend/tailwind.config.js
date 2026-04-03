@@ -27,6 +27,9 @@ export default {
         'neu-pressed-deep': 'var(--neu-pressed-deep)',
         'neu-flat': 'var(--neu-flat)',
       },
+      animation: {
+        'fade-in-long': 'fadeIn 1.5s ease-out forwards',
+      },
       backdropBlur: {
         glass: '16px',
       },

@@ -2,11 +2,13 @@ import { useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 import { animate, stagger } from 'animejs'
 import {
   FlaskConical, FileText, FileDown, RefreshCw, PlusCircle,
-  GraduationCap, BarChart3, Cpu, TrendingUp,
+  GraduationCap, BarChart3, Cpu, TrendingUp, ArrowRight,
 } from 'lucide-react'
 import { UserMessage } from './UserMessage'
 import { AgentMessage } from './AgentMessage'
 import { ChatInput } from './ChatInput'
+import { GenerativeArtScene } from '@/components/ui/anomalous-matter-hero'
+import NeuralBackground from '@/components/ui/flow-field-background'
 import type { ChatMessage } from '../types'
 
 interface Props {
@@ -16,6 +18,9 @@ interface Props {
   onStop: () => void
   onNew: () => void
   isRunning: boolean
+  showHero: boolean
+  onHeroEnter: () => void
+  showShader: boolean
 }
 
 // --- Export helpers ---
@@ -230,6 +235,43 @@ const CAPABILITIES = [
   },
 ]
 
+// --- Hero landing screen ---
+
+function HeroLanding({ onEnter }: { onEnter: () => void }) {
+  return (
+    <div className="flex-1 relative overflow-hidden">
+      {/* 3D background — full screen */}
+      <GenerativeArtScene />
+
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent z-[1]" />
+
+      {/* Content — anchored to bottom */}
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-24 md:pb-32 px-6 text-center">
+        <div className="max-w-2xl animate-fade-in-long">
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight text-white">
+            AI-Powered Deep Research
+          </h1>
+
+          <p className="mt-5 text-base md:text-lg leading-relaxed text-gray-400 max-w-lg mx-auto">
+            Six specialized AI agents work in parallel to search, analyze, verify sources, and produce comprehensive research reports in minutes, not hours.
+          </p>
+
+          <button
+            onClick={onEnter}
+            className="mt-8 inline-flex items-center gap-2.5 px-7 py-3.5 text-sm font-semibold rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all"
+          >
+            Start Research
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Empty state (chat starters) ---
+
 function EmptyState({ onCardClick, onSend, onStop, isRunning }: { onCardClick: (query: string) => void; onSend: (query: string) => void; onStop: () => void; isRunning: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -286,48 +328,40 @@ function EmptyState({ onCardClick, onSend, onStop, isRunning }: { onCardClick: (
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center gap-6 text-center p-8 relative overflow-hidden">
-      {/* Aurora background */}
-      <div className="aurora-bg">
-        <div className="wave wave-1" />
-        <div className="wave wave-2" />
-        <div className="wave wave-3" />
-        <div className="wave wave-4" />
-      </div>
-
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center gap-5">
         {/* Badge */}
-        <span data-anim="badge" className="inline-flex items-center gap-2 px-4 py-2 glass-sm text-xs font-semibold text-[var(--color-primary)]">
+        <span data-anim="badge" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-xs font-semibold text-indigo-300">
           <FlaskConical className="w-3.5 h-3.5" />
           DeepResearch
         </span>
 
         {/* Greeting */}
-        <h1 data-anim="greeting" className="text-3xl md:text-4xl font-bold gradient-text">
+        <h1 data-anim="greeting" className="text-3xl md:text-4xl font-bold text-white">
           What shall we research?
         </h1>
 
         {/* Subtitle */}
-        <p data-anim="subtitle" className="text-sm text-[var(--color-text-secondary)] max-w-md">
+        <p data-anim="subtitle" className="text-sm text-gray-400 max-w-md">
           AI-powered deep research with parallel agents, source verification, and comprehensive reports.
         </p>
 
-        {/* Capability cards — glassmorphic */}
+        {/* Capability cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl w-full mt-3">
           {CAPABILITIES.map(cap => (
             <button
               key={cap.title}
               data-anim="card"
               onClick={() => onCardClick(cap.description)}
-              className="group text-left p-4 glass hover:shadow-[0_8px_32px_var(--color-primary-glow)] transition-all duration-300 cursor-pointer hover:-translate-y-0.5"
+              className="group text-left p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer hover:-translate-y-0.5"
             >
               <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${cap.gradient} flex items-center justify-center mb-3`}>
                 <cap.icon className={`w-4.5 h-4.5 ${cap.iconColor}`} />
               </div>
-              <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-1 group-hover:text-[var(--color-primary)] transition-colors">
+              <p className="text-sm font-semibold text-white mb-1 group-hover:text-indigo-300 transition-colors">
                 {cap.title}
               </p>
-              <p className="text-xs leading-relaxed text-[var(--color-text-tertiary)]">
+              <p className="text-xs leading-relaxed text-gray-500">
                 {cap.description}
               </p>
             </button>
@@ -343,7 +377,7 @@ function EmptyState({ onCardClick, onSend, onStop, isRunning }: { onCardClick: (
   )
 }
 
-export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunning }: Props) {
+export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunning, showHero, onHeroEnter, showShader }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const isNearBottom = useRef(true)
 
@@ -363,15 +397,31 @@ export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunn
   const hasMessages = messages.length > 0
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Message list */}
-      {hasMessages ? (
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto"
-        >
-          <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="flex-1 flex flex-col overflow-hidden relative">
+      {/* Hero landing */}
+      {showHero && !hasMessages ? (
+        <HeroLanding onEnter={onHeroEnter} />
+      ) : (
+        <>
+          {/* Flow field or solid dark background */}
+          {showShader ? (
+            <NeuralBackground
+              color="#818cf8"
+              speed={0.8}
+              trailOpacity={0.1}
+              particleCount={600}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-black to-gray-950" />
+          )}
+
+          {hasMessages ? (
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto relative z-10"
+            >
+              <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
             {messages.map(msg => {
               if (msg.role === 'user') {
                 return <UserMessage key={msg.id} query={msg.data.query ?? ''} />
@@ -421,11 +471,13 @@ export function ChatArea({ messages, error, onSendMessage, onStop, onNew, isRunn
         <EmptyState onCardClick={onSendMessage} onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
       )}
 
-      {/* Export buttons + bottom input only when conversation is active */}
-      {hasMessages && (
-        <>
-          <ExportButtons messages={messages} />
-          <ChatInput onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
+          {/* Export buttons + bottom input only when conversation is active */}
+          {hasMessages && (
+            <div className="relative z-10">
+              <ExportButtons messages={messages} />
+              <ChatInput onSend={onSendMessage} onStop={onStop} isRunning={isRunning} />
+            </div>
+          )}
         </>
       )}
     </div>

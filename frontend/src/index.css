@@ -10,6 +10,25 @@ html, body, #root {
   height: 100%;
 }
 
+/* ── Component: Anomalous Matter Hero ── */
+:root {
+  --background: 0, 0%, 0%;
+  --foreground: 0, 100%, 100%;
+  --sky-300: 203, 92%, 53%;
+  --gray-300: 0, 0%, 70%;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ── Neumorphism + Glassmorphism Design Tokens ── */
 :root {
   /* Neumorphic base */

@@ -5,6 +5,8 @@ import { useResearch } from './hooks/useResearch'
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [showHero, setShowHero] = useState(true)
+  const [showShader, setShowShader] = useState(true)
   const {
     researchState,
     messages,
@@ -18,17 +20,25 @@ export default function App() {
     deleteSession,
   } = useResearch()
 
+  // Once messages appear, leave hero permanently
+  const hasMessages = messages.length > 0
+  if (hasMessages && showHero) setShowHero(false)
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--neu-bg)] antialiased">
-      <Sidebar
-        history={history}
-        activeId={activeSession?.id}
-        onSelect={loadSession}
-        onNew={newResearch}
-        onDelete={deleteSession}
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(prev => !prev)}
-      />
+    <div className="flex h-screen overflow-hidden bg-black antialiased">
+      {!showHero && (
+        <Sidebar
+          history={history}
+          activeId={activeSession?.id}
+          onSelect={loadSession}
+          onNew={newResearch}
+          onDelete={deleteSession}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(prev => !prev)}
+          showShader={showShader}
+          onToggleShader={() => setShowShader(prev => !prev)}
+        />
+      )}
       <ChatArea
         messages={messages}
         error={error}
@@ -36,6 +46,9 @@ export default function App() {
         onStop={stopResearch}
         onNew={newResearch}
         isRunning={researchState === 'running'}
+        showHero={showHero}
+        onHeroEnter={() => setShowHero(false)}
+        showShader={showShader}
       />
     </div>
   )
