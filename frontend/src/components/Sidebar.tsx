@@ -303,15 +303,20 @@ export function Sidebar({ history, activeId, onSelect, onNew, onDelete, isOpen, 
           </div>
 
           {/* Bottom section */}
-          <div className="px-3 py-3 flex items-center gap-2">
-            <button className="neu-btn p-2.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)]">
-              <Settings className="w-4 h-4" />
-            </button>
-            <div className="ml-auto flex items-center gap-2">
-              <ThemeToggle />
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-500 flex items-center justify-center shadow-[0_3px_10px_var(--color-primary-glow)]">
-                <User className="w-4 h-4 text-white" />
+          <div className="px-3 py-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <button className="neu-btn p-2.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)]">
+                <Settings className="w-4 h-4" />
+              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <ThemeToggle />
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-purple-500 flex items-center justify-center shadow-[0_3px_10px_var(--color-primary-glow)]">
+                  <User className="w-4 h-4 text-white" />
+                </div>
               </div>
+            </div>
+            <div className="px-1 text-[10px] text-[var(--color-text-tertiary)] opacity-60">
+              DeepResearch v0.1.0
             </div>
           </div>
           </div>
