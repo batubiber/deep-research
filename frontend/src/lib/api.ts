@@ -70,14 +70,21 @@ export async function getTaskStatus(taskId: string): Promise<{ done: boolean; qu
   return await res.json()
 }
 
+export interface StreamHandle {
+  /** Number of events received so far — pass to reconnect to skip replays. */
+  lastEventId: number
+}
+
 export async function streamTaskEvents(
   taskId: string,
   onEvent: (event: SSEEvent) => void,
   signal: AbortSignal,
-): Promise<void> {
+  startFrom: number = 0,
+): Promise<StreamHandle> {
+  const url = `${BASE}/research/${taskId}/events?last_event_id=${startFrom}`
   let res: Response
   try {
-    res = await fetch(`${BASE}/research/${taskId}/events`, { signal })
+    res = await fetch(url, { signal })
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
     throw new Error('Lost connection to server')
@@ -88,6 +95,7 @@ export async function streamTaskEvents(
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let lastId = startFrom
 
   while (true) {
     const { done, value } = await reader.read()
@@ -95,15 +103,24 @@ export async function streamTaskEvents(
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() ?? ''
+
+    let currentId: number | null = null
     for (const line of lines) {
+      if (line.startsWith('id: ')) {
+        currentId = parseInt(line.slice(4), 10)
+        continue
+      }
       if (!line.startsWith('data: ')) continue
       try {
         onEvent(JSON.parse(line.slice(6)) as SSEEvent)
+        if (currentId !== null) lastId = currentId + 1
       } catch {
         // skip malformed event
       }
     }
   }
+
+  return { lastEventId: lastId }
 }
 
 export async function cancelTask(taskId: string): Promise<void> {

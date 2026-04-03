@@ -61,6 +61,10 @@ def _semantic_chunk(content: str, query: str) -> str:
         selected.add(idx)
         budget += chunk_len
 
+    # Guard: if no paragraph fit the budget, truncate the first one
+    if not selected:
+        return paragraphs[0][:_MAX_CHARS_PER_SOURCE]
+
     # Reconstruct in original document order
     return "\n\n".join(para for i, para in enumerate(paragraphs) if i in selected)
 
@@ -223,7 +227,12 @@ async def researcher_node(state: dict) -> dict:
             if len(words) > 4:
                 search_query = " ".join(words[:5])
             else:
-                break
+                # Short query — try extracting just keywords
+                keywords = [w for w in words if w.lower() not in _STOP_WORDS and len(w) > 2]
+                if keywords:
+                    search_query = " ".join(keywords)
+                else:
+                    break
 
     # If still no sources after all rounds, return without calling the LLM
     if not all_sources:

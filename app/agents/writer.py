@@ -20,7 +20,7 @@ async def writer_node(state: ResearchState) -> dict:
         if s.get("url") and "researcher_analysis" not in s
     ]
     source_lines = [
-        f"{i}. [{s['eet_score'].upper()}] {s['title']} — {s['url']}"
+        f"{i}. [{(s.get('eet_score') or 'low').upper()}] {s.get('title', 'Untitled')} — {s.get('url', '')}"
         for i, s in enumerate(citable, 1)
     ]
     sources_block = "\n".join(source_lines) if source_lines else "No citable sources available."

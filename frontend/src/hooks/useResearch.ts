@@ -1,7 +1,7 @@
 // frontend/src/hooks/useResearch.ts
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import type { AgentName, ChatMessage, ResearchSession, Source } from '../types'
-import { startTask, streamTaskEvents, cancelTask, getTaskStatus, type SSEEvent } from '../lib/api'
+import { startTask, streamTaskEvents, cancelTask, getTaskStatus, type SSEEvent, type StreamHandle } from '../lib/api'
 import { parseSources } from '../lib/parseReport'
 
 export type ResearchState = 'idle' | 'running' | 'done' | 'error'
@@ -87,6 +87,7 @@ export function useResearch() {
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const taskIdRef = useRef<string | null>(null)
+  const lastEventIdRef = useRef<number>(0)
   const researcherCountRef = useRef({ done: 0, total: 0 })
 
   // Derive report and sources from messages
@@ -235,7 +236,7 @@ export function useResearch() {
       // Special: planner done → set researcher count and start first researcher
       if (agentName === 'planner') {
         const subQs = event.sub_questions ?? []
-        researcherCountRef.current = { done: 0, total: subQs.length || 3 }
+        researcherCountRef.current = { done: 0, total: subQs.length }
         updated.push({
           id: crypto.randomUUID(),
           role: 'agent',
@@ -265,7 +266,7 @@ export function useResearch() {
   }, [])
 
   // -----------------------------------------------------------------------
-  // Connect to a task's event stream (used for both new and reconnected)
+  // Connect to a task's event stream with auto-reconnect
   // -----------------------------------------------------------------------
   const connectToTask = useCallback(async (taskId: string, _query?: string) => {
     abortRef.current?.abort()
@@ -273,32 +274,76 @@ export function useResearch() {
     abortRef.current = ctrl
     taskIdRef.current = taskId
 
-    try {
-      await streamTaskEvents(taskId, handleEvent, ctrl.signal)
-      // Stream ended — check if we ever got __done__
+    const MAX_RECONNECTS = 10
+    const BASE_DELAY = 1000 // 1s, doubles each attempt
+
+    for (let attempt = 0; attempt <= MAX_RECONNECTS; attempt++) {
+      if (ctrl.signal.aborted) return
+
+      try {
+        const handle: StreamHandle = await streamTaskEvents(
+          taskId, handleEvent, ctrl.signal, lastEventIdRef.current,
+        )
+        lastEventIdRef.current = handle.lastEventId
+
+        // Stream ended gracefully — check if research is done
+        const status = await getTaskStatus(taskId).catch(() => null)
+        if (!status || status.done) {
+          // Task finished — if we never got __done__, emit error
+          setResearchState(prev => {
+            if (prev === 'running') {
+              setError('Research stream closed without a final report')
+              clearActiveTask()
+              taskIdRef.current = null
+              setMessages(msgs => msgs.map(m =>
+                m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
+              ))
+              return 'error'
+            }
+            return prev
+          })
+          return
+        }
+
+        // Task still running but stream dropped (tab switch, network blip) — reconnect
+        const delay = Math.min(BASE_DELAY * 2 ** attempt, 15000)
+        await new Promise(r => setTimeout(r, delay))
+        continue
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
+        // Network error — retry with backoff
+        const delay = Math.min(BASE_DELAY * 2 ** attempt, 15000)
+        await new Promise(r => setTimeout(r, delay))
+        continue
+      }
+    }
+
+    // Exhausted all reconnect attempts
+    setError('Lost connection to server after multiple retries')
+    setResearchState('error')
+    clearActiveTask()
+    taskIdRef.current = null
+  }, [handleEvent])
+
+  // -----------------------------------------------------------------------
+  // Reconnect when tab becomes visible again
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      const taskId = taskIdRef.current
+      if (!taskId) return
+      // Only reconnect if we think research is still running
       setResearchState(prev => {
         if (prev === 'running') {
-          setError('Research stream closed without a final report')
-          clearActiveTask()
-          taskIdRef.current = null
-          setMessages(msgs => msgs.map(m =>
-            m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
-          ))
-          return 'error'
+          connectToTask(taskId)
         }
         return prev
       })
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return
-      setError((err as Error).message ?? 'Research failed')
-      setResearchState('error')
-      clearActiveTask()
-      taskIdRef.current = null
-      setMessages(prev => prev.map(m =>
-        m.status === 'running' ? { ...m, status: 'error' as const, finishedAt: Date.now() } : m
-      ))
     }
-  }, [handleEvent])
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [connectToTask])
 
   // -----------------------------------------------------------------------
   // Start a new research
@@ -306,6 +351,7 @@ export function useResearch() {
   const startResearch = useCallback(async (query: string) => {
     abortRef.current?.abort()
     researcherCountRef.current = { done: 0, total: 0 }
+    lastEventIdRef.current = 0
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -383,6 +429,7 @@ export function useResearch() {
 
       // Set up initial UI state for reconnection
       researcherCountRef.current = { done: 0, total: 0 }
+      lastEventIdRef.current = 0
 
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),

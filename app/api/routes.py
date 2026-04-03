@@ -25,6 +25,18 @@ AGENT_NODE_NAMES = {
 # In-memory task store  (no external dependency needed)
 # ---------------------------------------------------------------------------
 _tasks: dict[str, dict] = {}
+_TASK_TTL = 3600  # seconds — completed tasks are cleaned up after 1 hour
+
+
+def _cleanup_tasks() -> None:
+    """Remove completed tasks older than _TASK_TTL to prevent memory leaks."""
+    now = time.time()
+    expired = [
+        tid for tid, t in _tasks.items()
+        if t["done"] and now - t.get("finished_at", 0) > _TASK_TTL
+    ]
+    for tid in expired:
+        del _tasks[tid]
 
 
 def _build_node_payload(node: str, output: dict, data: dict) -> list[dict]:
@@ -145,6 +157,7 @@ async def _run_graph_task(task_id: str, query: str) -> None:
         if not done_sent:
             task["events"].append({"node": "__done__", "report": "", "sources_count": 0})
         task["done"] = True
+        task["finished_at"] = time.time()
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +165,7 @@ async def _run_graph_task(task_id: str, query: str) -> None:
 # ---------------------------------------------------------------------------
 @router.post("/research/start")
 async def start_research(req: ResearchRequest):
+    _cleanup_tasks()
     task_id = uuid.uuid4().hex[:8]
     _tasks[task_id] = {
         "query": req.query,
