@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import type { AgentName, ChatMessage, ResearchSession, Source } from '../types'
 import { startTask, streamTaskEvents, cancelTask, getTaskStatus, type SSEEvent, type StreamHandle } from '../lib/api'
 import { parseSources } from '../lib/parseReport'
+import { useSessionStore } from './useSessionStore'
 
 export type ResearchState = 'idle' | 'running' | 'done' | 'error'
 
@@ -27,39 +28,7 @@ function nextAgent(current: AgentName): AgentName | null {
   return idx >= 0 && idx < AGENT_ORDER.length - 1 ? AGENT_ORDER[idx + 1] : null
 }
 
-const HISTORY_KEY = 'deep-research-history'
 const ACTIVE_TASK_KEY = 'deep-research-active-task'
-const MAX_HISTORY = 20
-
-function loadHistory(): ResearchSession[] {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') as ResearchSession[]
-  } catch {
-    return []
-  }
-}
-
-function persistHistory(sessions: ResearchSession[]): void {
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(sessions.slice(0, MAX_HISTORY)))
-  } catch {
-    // QuotaExceededError — silently ignore
-  }
-}
-
-function trimMessagesForStorage(messages: ChatMessage[]): ChatMessage[] {
-  return messages.map(m => {
-    if (m.role === 'user') return m
-    const data = { ...m.data }
-    if (data.sources) {
-      data.sources = data.sources.map((s: any) => ({ ...s, content: s.content?.slice(0, 200) ?? '' }))
-    }
-    if (data.gap_sources) {
-      data.gap_sources = data.gap_sources.map((s: any) => ({ ...s, content: s.content?.slice(0, 200) ?? '' }))
-    }
-    return { ...m, data }
-  })
-}
 
 function saveActiveTask(taskId: string, query: string): void {
   localStorage.setItem(ACTIVE_TASK_KEY, JSON.stringify({ taskId, query }))
@@ -80,9 +49,9 @@ function clearActiveTask(): void {
 
 
 export function useResearch() {
+  const { sessions: history, isLoading: historyLoading, addSession, removeSession } = useSessionStore()
   const [researchState, setResearchState] = useState<ResearchState>('idle')
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [history, setHistory] = useState<ResearchSession[]>(loadHistory)
   const [activeSession, setActiveSession] = useState<ResearchSession | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -136,24 +105,19 @@ export function useResearch() {
           data: event,
         }]
 
-        // Find the query from user message
         const query = prev.find(m => m.role === 'user')?.data?.query ?? ''
 
         const session: ResearchSession = {
           id: crypto.randomUUID(),
           query,
           timestamp: Date.now(),
-          messages: trimMessagesForStorage(withDone),
+          messages: withDone,
           report: fullReport,
           sources: parsedSources,
           sourcesCount: count,
         }
         setActiveSession(session)
-        setHistory(prev => {
-          const updated = [session, ...prev].slice(0, MAX_HISTORY)
-          persistHistory(updated)
-          return updated
-        })
+        addSession(session)
 
         return withDone
       })
@@ -263,7 +227,7 @@ export function useResearch() {
 
       return updated
     })
-  }, [])
+  }, [addSession])
 
   // -----------------------------------------------------------------------
   // Connect to a task's event stream with auto-reconnect
@@ -505,11 +469,7 @@ export function useResearch() {
   }, [])
 
   const deleteSession = useCallback((id: string) => {
-    setHistory(prev => {
-      const next = prev.filter(s => s.id !== id)
-      persistHistory(next)
-      return next
-    })
+    removeSession(id)
     setActiveSession(prev => {
       if (prev?.id === id) {
         setResearchState('idle')
@@ -519,7 +479,7 @@ export function useResearch() {
       }
       return prev
     })
-  }, [])
+  }, [removeSession])
 
   return {
     researchState,
@@ -528,6 +488,7 @@ export function useResearch() {
     sources,
     sourcesCount,
     history,
+    historyLoading,
     activeSession,
     error,
     startResearch,
