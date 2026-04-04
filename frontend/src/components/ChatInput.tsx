@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Send, Square } from 'lucide-react'
+import { Send } from 'lucide-react'
+import Loader from '@/components/ui/loader-4'
 
 interface Props {
   onSend: (query: string) => void
@@ -57,9 +58,9 @@ export function ChatInput({ onSend, onStop, isRunning }: Props) {
           <button
             type="button"
             onClick={onStop}
-            className="neu-btn flex items-center justify-center w-[50px] h-[50px] text-red-500 hover:text-red-400 transition-colors flex-shrink-0"
+            className="neu-btn flex items-center justify-center w-[50px] h-[50px] transition-colors flex-shrink-0"
           >
-            <Square className="w-5 h-5" />
+            <Loader />
           </button>
         ) : (
           <button

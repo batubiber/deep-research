@@ -106,12 +106,16 @@ html, body, #root {
   --color-code-text: #85a0ff;
 
   /* Scrollbar */
-  --color-scrollbar: #2a2a44;
-  --color-scrollbar-hover: #3a3a54;
+  --color-scrollbar: #7070a0;
+  --color-scrollbar-hover: #8b8bc0;
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-scrollbar); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-hover); }
