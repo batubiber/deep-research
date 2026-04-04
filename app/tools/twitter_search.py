@@ -16,6 +16,7 @@ async def twitter_search(query: str, max_results: int = 5) -> list[SearchResult]
     response = await client.search(
         query,
         max_results=max_results,
+        search_depth=settings.tavily_search_depth,
         include_domains=["x.com", "twitter.com"],
     )
 

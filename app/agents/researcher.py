@@ -21,6 +21,17 @@ _STOP_WORDS = {
     "for", "of", "and", "or", "this", "that", "it", "with", "as", "by", "be",
 }
 
+_NEWS_KEYWORDS = {
+    "recent", "latest", "current", "today", "news", "update", "announce",
+    "breaking", "trend", "2024", "2025", "2026",
+}
+
+
+def _detect_topic(question: str) -> str:
+    """Return 'news' if the question looks time-sensitive, else 'general'."""
+    words = set(question.lower().split())
+    return "news" if words & _NEWS_KEYWORDS else "general"
+
 # Max chars per source passed to LLM. At ~4 chars/token, 60k ≈ 15k tokens.
 # With 265k context and up to 7 sources, total source content ≈ 105k tokens — well within budget.
 _MAX_CHARS_PER_SOURCE = 60_000
@@ -182,8 +193,13 @@ async def researcher_node(state: dict) -> dict:
     for round_num in range(max_rounds):
         previous_queries.append(search_query)
 
+        topic = _detect_topic(sub_question["question"])
+
         try:
-            results = await search_fn(search_query, max_results=results_per_search)
+            if search_fn is web_search:
+                results = await search_fn(search_query, max_results=results_per_search, topic=topic)
+            else:
+                results = await search_fn(search_query, max_results=results_per_search)
         except Exception as e:
             logger.error("Search failed (tool=%s, query=%r): %s", tool_name, search_query, e)
             results = []
@@ -191,7 +207,7 @@ async def researcher_node(state: dict) -> dict:
         # Fallback to web_search if primary tool returned nothing (first round only)
         if not results and search_fn is not web_search and round_num == 0:
             try:
-                results = await web_search(search_query, max_results=results_per_search)
+                results = await web_search(search_query, max_results=results_per_search, topic=topic)
                 tool_name = "web_search"
             except Exception as e:
                 logger.error("Fallback web_search failed (query=%r): %s", search_query, e)

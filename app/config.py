@@ -4,6 +4,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Tavily
     tavily_api_key: str = ""
+    tavily_search_depth: str = "advanced"          # "basic" (1 credit) or "advanced" (2 credits, better relevance)
+    tavily_include_raw_content: bool = True         # return full page markdown — eliminates Jina for web search
 
     # Twitter (optional — cookie auth)
     twitter_ct0: str = ""
