@@ -4,7 +4,7 @@ import { ChatArea } from './components/ChatArea'
 import { useResearch } from './hooks/useResearch'
 
 export default function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showHero, setShowHero] = useState(true)
   const [showShader, setShowShader] = useState(true)
   const {
