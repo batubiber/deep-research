@@ -91,8 +91,8 @@ deep-research/
 
 | Parametre | Değer |
 |---|---|
-| **Endpoint** | `https://kent-unurbane-many.ngrok-free.dev` |
-| **OpenAI-compat base URL** | `https://kent-unurbane-many.ngrok-free.dev/v1` |
+| **Endpoint** | `https://your-endpoint.example.com` |
+| **OpenAI-compat base URL** | `https://your-endpoint.example.com/v1` |
 | **Model ID** | `qwen3-5` |
 | **API Key** | `a` (vLLM'de auth kapalı, placeholder) |
 
@@ -101,7 +101,7 @@ deep-research/
 
 Bağlantıyı test etmek için:
 ```bash
-curl https://kent-unurbane-many.ngrok-free.dev/v1/models \
+curl https://your-endpoint.example.com/v1/models \
   -H "Authorization: Bearer a"
 ```
 Beklenen yanıt: `qwen3-5` model ID'sini içeren JSON listesi.
@@ -112,7 +112,7 @@ Beklenen yanıt: `qwen3-5` model ID'sini içeren JSON listesi.
 
 ```bash
 # vLLM
-VLLM_BASE_URL=https://kent-unurbane-many.ngrok-free.dev/v1
+VLLM_BASE_URL=https://your-endpoint.example.com/v1
 VLLM_API_KEY=a
 VLLM_MODEL_NAME=qwen3-5
 
