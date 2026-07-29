@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     jina_api_key: str = ""
 
     # vLLM
-    vllm_base_url: str = "https://kent-unurbane-many.ngrok-free.dev/v1"
+    # No default: the endpoint belongs in .env, never in committed code.
+    vllm_base_url: str = ""
     vllm_api_key: str = "a"
     vllm_model_name: str = "qwen3-5"
 
@@ -52,7 +53,7 @@ class Settings(BaseSettings):
     # Parallelism
     max_parallel_researchers: int = 5
 
-    # LLM request timeout (seconds) — 122B FP8 on 8×A100: worst-case call ~40s, 90s = 2× headroom
+    # LLM request timeout (seconds) — ~2x the worst-case single call for the served model
     llm_timeout: float = 90.0
 
     # API
